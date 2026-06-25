@@ -531,6 +531,101 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
 .fade-in{animation:fadeIn 0.3s ease-out both;}
 
+/* ── TAB BAR ── */
+.tab-bar{
+  width:100%;max-width:1240px;
+  display:flex;gap:4px;
+  background:rgba(4,16,28,0.75);border-radius:12px;
+  padding:5px;border:1px solid var(--border);
+  backdrop-filter:blur(10px);
+}
+.tab-btn{
+  flex:1;padding:9px 16px;border-radius:8px;border:none;
+  background:transparent;color:var(--muted);cursor:pointer;
+  font-family:var(--cond);font-weight:700;font-size:13px;
+  letter-spacing:1.2px;text-transform:uppercase;
+  transition:all 0.15s ease;white-space:nowrap;
+}
+.tab-btn:hover{background:rgba(85,193,255,0.07);color:var(--text);}
+.tab-btn.active{
+  background:rgba(27,124,255,0.2);color:var(--accent);
+  box-shadow:0 0 0 1px rgba(85,193,255,0.22),0 2px 10px rgba(27,124,255,0.18);
+}
+:root.night .tab-btn.active{
+  background:rgba(160,80,0,0.2);color:var(--accent);
+  box-shadow:0 0 0 1px rgba(160,80,0,0.28);
+}
+@media(max-width:960px){.tab-btn{font-size:11px;padding:8px 6px;letter-spacing:0.6px;}}
+
+/* ── IMPROVED STATION CARDS ── */
+.stations-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;
+}
+.station-card{
+  border-radius:14px;
+  background:linear-gradient(145deg,rgba(8,28,54,0.97),rgba(4,16,34,0.97));
+  border:1px solid rgba(55,130,200,0.15);
+  overflow:hidden;position:relative;
+  transition:border-color 0.2s ease,box-shadow 0.2s ease,transform 0.2s ease;
+}
+.station-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent-strong),var(--accent),transparent);
+}
+.station-card:hover{
+  border-color:rgba(85,193,255,0.3);
+  box-shadow:0 10px 32px rgba(0,0,0,0.5),var(--glow-accent);
+  transform:translateY(-1px);
+}
+:root.night .station-card{background:linear-gradient(145deg,rgba(20,10,0,0.97),rgba(10,5,0,0.97));}
+
+.sc-header{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  padding:14px 15px 6px;
+}
+.sc-name{
+  font-family:var(--cond);font-weight:800;font-size:14px;
+  color:var(--accent);letter-spacing:0.5px;line-height:1.3;
+}
+.sc-badge{
+  font-family:var(--cond);font-size:9px;letter-spacing:1.5px;
+  text-transform:uppercase;padding:3px 9px;border-radius:10px;font-weight:700;flex-shrink:0;
+}
+.sc-badge.fresh{background:rgba(63,207,130,0.12);color:var(--ok);border:1px solid rgba(63,207,130,0.22);}
+.sc-badge.stale{background:rgba(255,95,95,0.1);color:var(--alert);border:1px solid rgba(255,95,95,0.22);}
+
+.sc-main{
+  display:flex;align-items:center;gap:8px;
+  padding:2px 15px 14px;
+}
+.sc-temp-block{display:flex;align-items:baseline;gap:1px;flex:1;min-width:0;}
+.sc-temp-val{font-family:var(--cond);font-weight:800;font-size:3rem;color:#fff;line-height:1;}
+.sc-temp-unit{font-family:var(--cond);font-size:1.1rem;color:var(--muted);}
+
+.sc-wind-block{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;}
+.sc-wind-spd{font-family:var(--cond);font-weight:800;font-size:1.6rem;color:#fff;line-height:1.1;}
+.sc-wind-lbl{font-family:var(--cond);font-size:9px;color:var(--muted);letter-spacing:1.2px;text-transform:uppercase;}
+
+.sc-grid{
+  display:grid;grid-template-columns:1fr 1fr 1fr 1fr;
+  border-top:1px solid rgba(55,130,200,0.1);
+}
+.sc-metric{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:9px 4px;gap:3px;
+  border-right:1px solid rgba(55,130,200,0.08);
+}
+.sc-metric:last-child{border-right:none;}
+.sc-metric-lbl{font-family:var(--cond);font-size:8px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);}
+.sc-metric-val{font-family:var(--cond);font-weight:700;font-size:14px;color:#d0e8ff;}
+:root.night .sc-metric-val{color:#ffe8b0;}
+
+.sc-footer{
+  padding:7px 15px;
+  font-family:var(--mono);font-size:10px;color:rgba(106,138,170,0.4);
+  letter-spacing:0.3px;border-top:1px solid rgba(55,130,200,0.07);
+}
+
 /* ── RESPONSIVE ── */
 @media(max-width:960px){
   .top-row{grid-template-columns:1fr;gap:10px;}
@@ -609,6 +704,14 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     </div>
   </div>
 
+  <!-- ═══ TAB BAR ═══ -->
+  <nav class="tab-bar" role="tablist" aria-label="Dashboard sections">
+    <button class="tab-btn active" data-tab="metar" role="tab" aria-selected="true">📡 METAR</button>
+    <button class="tab-btn" data-tab="taf" role="tab" aria-selected="false">📋 TAF</button>
+    <button class="tab-btn" data-tab="synop" role="tab" aria-selected="false">🛰 SYNOP</button>
+    <button class="tab-btn" data-tab="stations" role="tab" aria-selected="false">⊞ Stations</button>
+  </nav>
+
   <!-- ═══ CONTENT ═══ -->
   <div class="content-wrapper">
 
@@ -618,7 +721,6 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <div class="section-title">METAR Observations</div>
         <div class="section-controls">
           <button id="metar-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Refresh METAR">↻ METAR</button>
-          <button id="switchToStations" class="btn-ghost">⊞ Stations Dashboard</button>
         </div>
       </div>
       <div class="table-card">
@@ -638,7 +740,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     </div>
 
     <!-- TAF Section -->
-    <div id="tafSection" class="table-wrapper fade-in">
+    <div id="tafSection" class="table-wrapper fade-in hidden">
       <div class="section-header">
         <div class="section-title">Terminal Aerodrome Forecast</div>
         <div class="section-controls">
@@ -659,7 +761,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     </div>
 
     <!-- SYNOP Section -->
-    <div id="synopSection" class="table-wrapper fade-in">
+    <div id="synopSection" class="table-wrapper fade-in hidden">
       <div class="section-header">
         <div class="section-title">SYNOP Reports</div>
         <div class="section-controls">
@@ -687,7 +789,6 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <span id="stationsLastFetched" style="color:var(--muted);font-size:11px;font-family:var(--mono);">Last fetched: —</span>
         <button id="toggleMap" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;">🗺 Map View</button>
-        <button id="backToMetar" class="btn-ghost">← Back to METAR</button>
       </div>
     </div>
 
@@ -1814,38 +1915,44 @@ function addMarkersToMap(rows){
 
 function renderStationsList(rows){
   const list=el('stationsList');
-  if(!rows.length){list.innerHTML='<div style="padding:20px;color:var(--muted);font-family:var(--cond);letter-spacing:1px;text-transform:uppercase;font-size:12px;">No stations available</div>';return;}
+  if(!rows.length){list.className='';list.innerHTML='<div style="padding:20px;color:var(--muted);font-family:var(--cond);letter-spacing:1px;text-transform:uppercase;font-size:12px;">No stations available</div>';return;}
   let alertCount=0,staleCount=0,mostRecent=null;
+  list.className='stations-grid';
   list.innerHTML=rows.map(r=>{
     const ev=evaluateStation(r);
     if(ev.alerts.length)alertCount++;
     if(ev.isStaleDate)staleCount++;
     if(!mostRecent&&r.last_updated)mostRecent=r.last_updated;
-    const temp=r.temperature_c!==null?r.temperature_c.toFixed(1)+'°C':'—';
+    const tempNum=r.temperature_c!==null?r.temperature_c.toFixed(1):null;
+    const hiNum=r.heat_index_c!==null?r.heat_index_c.toFixed(1):null;
     const windKn=r.wind_speed_knots!==null?r.wind_speed_knots:null;
     const windDeg=r.wind_direction_deg!==null?Number(r.wind_direction_deg):null;
     const windText=r.wind_direction_text||r.wind_direction||'—';
     const rose=windRoseSvg(windDeg,windKn);
-    return`<div class="station-row">
-      <div class="station-top">
-        <div style="display:flex;gap:12px;align-items:center;">
-          ${rose}
-          <div>
-            <div class="station-name">${escapeHtml(r.station)}</div>
-            <div class="station-time">${escapeHtml(r.last_updated||'—')}</div>
-          </div>
+    const badge=ev.isStaleDate?'<span class="sc-badge stale">Stale</span>':'<span class="sc-badge fresh">Live</span>';
+    return`<div class="station-card">
+      <div class="sc-header">
+        <div class="sc-name">${escapeHtml(r.station)}</div>
+        ${badge}
+      </div>
+      <div class="sc-main">
+        <div class="sc-temp-block">
+          <span class="sc-temp-val">${tempNum!==null?tempNum:'—'}</span>
+          <span class="sc-temp-unit">${tempNum!==null?' °C':''}</span>
         </div>
-        <div style="display:flex;gap:7px;">
-          <div class="param"><span class="label">Temp</span><span class="value">${temp}</span></div>
-          <div class="param"><span class="label">Wind</span><span class="value">${windKn!==null?windKn+' kn':'—'}</span></div>
+        ${rose}
+        <div class="sc-wind-block">
+          <div class="sc-wind-spd">${windKn!==null?windKn:'—'}</div>
+          <div class="sc-wind-lbl">${windKn!==null?windText+' · kn':''}</div>
         </div>
       </div>
-      <div class="params-row">
-        <div class="param"><span class="label">Heat idx</span><span class="value" style="font-size:14px;">${r.heat_index_c!=null?r.heat_index_c.toFixed(1)+'°':'—'}</span></div>
-        <div class="param"><span class="label">Humidity</span><span class="value" style="font-size:14px;">${r.humidity_percent!=null?r.humidity_percent+'%':'—'}</span></div>
-        <div class="param"><span class="label">Direction</span><span class="value" style="font-size:14px;">${windText}${windDeg!==null?' ('+windDeg+'°)':''}</span></div>
-        <div class="param"><span class="label">Rain today</span><span class="value" style="font-size:14px;">${r.rain_today_mm!=null?r.rain_today_mm+' mm':'—'}</span></div>
+      <div class="sc-grid">
+        <div class="sc-metric"><span class="sc-metric-lbl">Feels like</span><span class="sc-metric-val">${hiNum!==null?hiNum+'°':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Humidity</span><span class="sc-metric-val">${r.humidity_percent!=null?r.humidity_percent+'%':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Dir</span><span class="sc-metric-val">${windDeg!==null?windDeg+'°':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Rain</span><span class="sc-metric-val">${r.rain_today_mm!=null?r.rain_today_mm+' mm':'—'}</span></div>
       </div>
+      <div class="sc-footer">${escapeHtml(r.last_updated||'—')}</div>
     </div>`;
   }).join('');
   el('totalCount').textContent=rows.length;
@@ -1892,20 +1999,36 @@ el('mapSearch').addEventListener('input',()=>{
   addMarkersToMap(currentData.filter(r=>!q||(r.station&&r.station.toLowerCase().includes(q))));
 });
 
-/* ── SECTION SWITCHING ── */
+/* ── SECTION SWITCHING (TAB BAR) ── */
 const metarSectionEl=document.getElementById('metarSection');
 const tafSectionEl=document.getElementById('tafSection');
 const synopSectionEl=document.getElementById('synopSection');
 const stationsSectionEl=document.getElementById('stationsSection');
+const contentWrapperEl=document.querySelector('.content-wrapper');
 
-document.getElementById('switchToStations').addEventListener('click',()=>{
-  metarSectionEl?.classList.add('hidden');tafSectionEl?.classList.add('hidden');synopSectionEl?.classList.add('hidden');
-  stationsSectionEl?.classList.remove('hidden');stationsSectionEl?.setAttribute('aria-hidden','false');
-  fetchStationsData();
-});
-document.getElementById('backToMetar').addEventListener('click',()=>{
-  stationsSectionEl?.classList.add('hidden');stationsSectionEl?.setAttribute('aria-hidden','true');
-  metarSectionEl?.classList.remove('hidden');tafSectionEl?.classList.remove('hidden');synopSectionEl?.classList.remove('hidden');
+function switchTab(name){
+  [metarSectionEl,tafSectionEl,synopSectionEl].forEach(s=>s?.classList.add('hidden'));
+  contentWrapperEl?.classList.remove('hidden');
+  stationsSectionEl?.classList.add('hidden');
+  stationsSectionEl?.setAttribute('aria-hidden','true');
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    const active=b.dataset.tab===name;
+    b.classList.toggle('active',active);
+    b.setAttribute('aria-selected',String(active));
+  });
+  if(name==='metar'){metarSectionEl?.classList.remove('hidden');}
+  else if(name==='taf'){tafSectionEl?.classList.remove('hidden');}
+  else if(name==='synop'){synopSectionEl?.classList.remove('hidden');}
+  else if(name==='stations'){
+    contentWrapperEl?.classList.add('hidden');
+    stationsSectionEl?.classList.remove('hidden');
+    stationsSectionEl?.setAttribute('aria-hidden','false');
+    fetchStationsData();
+  }
+}
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
 });
 
 /* ── INIT ── */
