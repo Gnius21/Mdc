@@ -762,6 +762,7 @@ const visTsEl = document.getElementById('vis-timestamp');
 let mute = false;
 let testMode = false;
 const metarState = {};
+let _windRoseId = 0;
 
 /* ── UTILS ── */
 function pad(n){ return n < 10 ? '0' + n : '' + n; }
@@ -1296,7 +1297,7 @@ function parseTaf(rawText){
     const seg=parseTafSegment(segBody,full);
 
     let type='TEMPO',label=keyword;
-    if(/^FM/.test(keyword)){type='FM';const hhmm=keyword.slice(4,8);label=`FM ${hhmm.slice(0,2)}:${hhmm.slice(2)}`;}
+    if(/^FM/.test(keyword)){type='FM';const ddhhmm=keyword.slice(2,8);label=`FM ${ddhhmm.slice(0,2)}/${ddhhmm.slice(2,4)}:${ddhhmm.slice(4)}`;}
     else if(/^BECMG/.test(keyword)){type='BECMG';label='BECMG';}
     else if(/^PROB\d{2}\s+TEMPO/.test(keyword)){type='TEMPO';label=keyword;}
     else if(/^PROB\d{2}/.test(keyword)){type='PROB';label=keyword;}
@@ -1465,9 +1466,8 @@ function formatHistTime(d){
 
 function buildHistoryTableHtml(records){
   if(!records.length)return'<div class="history-empty">No observations available for the past 6 hours.</div>';
-  const rows=records.slice(0,14).map((rec,i)=>{
+  const rows=records.slice(0,14).map((rec)=>{
     const p=parseMetar(rec.raw);
-    const isLatest=i===0;
     return `<tr>
       <td class="h-time">${formatHistTime(rec.time)}</td>
       <td>${p.wind}</td>
@@ -1753,7 +1753,7 @@ function windRoseSvg(directionDeg,speed){
   const arrowColor=sp>=25?'#ff5f5f':(sp>=15?'#f59e0b':'#3fcf82');
   const toDeg=(dir+180)%360;
   return`<svg viewBox="0 0 84 84" class="wind-rose">
-    <defs><marker id="arr${Math.floor(Math.random()*9999)}" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="${arrowColor}"/></marker></defs>
+    <defs><marker id="arr${++_windRoseId}" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="${arrowColor}"/></marker></defs>
     <circle cx="42" cy="42" r="30" stroke="rgba(85,193,255,0.15)" stroke-width="1.5" fill="none"/>
     <circle cx="42" cy="42" r="2" stroke="rgba(85,193,255,0.2)" stroke-width="1" fill="none"/>
     <g transform="translate(42,42) rotate(${toDeg})">
@@ -1911,7 +1911,6 @@ document.getElementById('backToMetar').addEventListener('click',()=>{
 /* ── INIT ── */
 (async function init(){
   try{
-    buildMetarTable();buildTafTable();buildSynopTable();
     await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops()]);
     const anyData=STATIONS.some(icao=>metarState[icao]&&metarState[icao].lastRaw);
     if(!anyData){
