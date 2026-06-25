@@ -1,0 +1,1934 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Regional Weather Centre — METAR Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Barlow+Condensed:wght@300;400;500;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+
+<style>
+:root{
+  --bg:#020d18;
+  --panel:#061828;
+  --card:rgba(6,24,42,0.96);
+  --border:rgba(55,130,200,0.14);
+  --border-bright:rgba(85,193,255,0.22);
+  --text:#ffffff;
+  --muted:#8aabcc;
+  --accent:#55c1ff;
+  --accent-strong:#1b7cff;
+  --accent-dim:rgba(85,193,255,0.12);
+  --alert:#ff5f5f;
+  --alert-dim:rgba(255,95,95,0.08);
+  --ok:#3fcf82;
+  --ok-dim:rgba(63,207,130,0.08);
+  --warn:#f59e0b;
+  --radius:10px;
+  --radius-lg:14px;
+  --shadow:0 16px 40px rgba(0,0,0,0.55);
+  --shadow-sm:0 4px 16px rgba(0,0,0,0.35);
+  --widget-width:270px;
+  --mono:'Space Mono', ui-monospace, monospace;
+  --sans:'Barlow', system-ui, sans-serif;
+  --cond:'Barlow Condensed', system-ui, sans-serif;
+  --dashboard-blue: #062a6f;
+  --glow-accent: 0 0 24px rgba(85,193,255,0.12);
+  --glow-alert: 0 0 20px rgba(255,95,95,0.18);
+  --th-bg: rgba(8,30,56,0.97);
+  --raw-bg: rgba(4,16,28,0.8);
+  --statusbar-bg: rgba(4,16,28,0.5);
+  --table-card-bg: rgba(6,24,42,0.6);
+  --station-row-bg1: rgba(10,30,54,0.9);
+  --station-row-bg2: rgba(6,20,38,0.9);
+}
+
+/* ── NIGHT MODE ── */
+:root.night{
+  --bg:#080400;
+  --panel:#0f0800;
+  --card:rgba(14,8,0,0.98);
+  --border:rgba(100,50,0,0.2);
+  --border-bright:rgba(160,80,0,0.22);
+  --text:#fff5e0;
+  --muted:#7a6040;
+  --accent:#cc8800;
+  --accent-strong:#aa6600;
+  --accent-dim:rgba(180,110,0,0.12);
+  --alert:#ff4040;
+  --alert-dim:rgba(255,64,64,0.1);
+  --ok:#28a060;
+  --ok-dim:rgba(40,160,96,0.1);
+  --glow-accent: 0 0 20px rgba(160,80,0,0.1);
+  --glow-alert: 0 0 18px rgba(255,64,64,0.15);
+  --shadow: 0 16px 40px rgba(0,0,0,0.85);
+  --shadow-sm: 0 4px 16px rgba(0,0,0,0.7);
+  --th-bg: rgba(18,10,0,0.99);
+  --raw-bg: rgba(10,5,0,0.95);
+  --statusbar-bg: rgba(10,5,0,0.8);
+  --table-card-bg: rgba(14,8,0,0.85);
+  --station-row-bg1: rgba(18,10,0,0.95);
+  --station-row-bg2: rgba(12,6,0,0.95);
+}
+
+:root.night body::before{
+  background:
+    radial-gradient(ellipse 900px 500px at 10% 0%, rgba(120,40,0,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 90% 80%, rgba(100,30,0,0.05) 0%, transparent 55%),
+    radial-gradient(ellipse 400px 300px at 50% 40%, rgba(80,20,0,0.04) 0%, transparent 60%);
+}
+:root.night body::after{
+  background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+}
+:root.night .page::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:rgba(20,5,0,0.18);
+}
+:root.night .widget-head{background:linear-gradient(90deg,rgba(120,60,0,0.22),rgba(100,40,0,0.06));}
+:root.night .weather-widget::before{background:linear-gradient(90deg,var(--accent-strong),var(--accent),transparent);}
+:root.night .section-title::before{background:linear-gradient(90deg,var(--accent-strong),transparent);}
+:root.night .time-updated{background:rgba(160,80,0,0.2) !important;}
+:root.night .btn-primary{
+  background:linear-gradient(180deg,rgba(140,70,0,0.9),rgba(100,46,0,0.9));
+  border-color:rgba(160,80,0,0.35);
+  box-shadow:0 4px 14px rgba(140,70,0,0.2),inset 0 1px 0 rgba(255,200,100,0.08);
+}
+:root.night .btn-primary:hover{background:linear-gradient(180deg,rgba(170,85,0,0.95),rgba(120,56,0,0.95));}
+:root.night .header-title{color:var(--accent);text-shadow:0 0 30px rgba(160,80,0,0.35);}
+:root.night .clock-time{text-shadow:0 0 20px rgba(160,80,0,0.3);}
+:root.night .status-dot{box-shadow:0 0 0 3px rgba(40,160,96,0.12),0 0 8px #28a060;}
+:root.night .dot-live{background:var(--ok);box-shadow:0 0 6px var(--ok);}
+:root.night .raw-current{color:rgba(220,180,100,0.75);}
+:root.night .station-name,:root.night td.station{color:var(--accent);}
+:root.night .param .value{color:#ffe8b0;}
+:root.night .pill span{color:var(--accent);}
+:root.night .dot.ok{background:#28a060;box-shadow:0 0 4px #28a060;}
+:root.night .dot.warn{background:#cc3030;box-shadow:0 0 4px #cc3030;}
+
+html,body,
+.weather-widget,.table-card,.stations-card,.station-row,
+th,td,.btn-ghost,.btn-primary,.status-bar,.pill,
+.param,.section-title,.header-title,.clock-time,.footer-brand{
+  transition:background 0.4s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;transition:background 0.4s ease,color 0.3s ease;}
+
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 900px 500px at 10% 0%, rgba(27,124,255,0.06) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 90% 80%, rgba(85,193,255,0.04) 0%, transparent 55%),
+    radial-gradient(ellipse 400px 300px at 50% 40%, rgba(63,207,130,0.02) 0%, transparent 60%);
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+}
+
+.page{width:100%;position:relative;z-index:1;padding:14px 18px;display:flex;flex-direction:column;align-items:center;gap:14px;min-height:100vh;}
+
+/* ── TOP ROW ── */
+.top-row{width:100%;max-width:1240px;display:grid;grid-template-columns:var(--widget-width) 1fr auto;align-items:center;gap:14px;}
+
+/* ── WIDGET ── */
+.weather-widget{
+  border-radius:var(--radius-lg);background:var(--card);
+  box-shadow:var(--shadow),var(--glow-accent);
+  border:1px solid var(--border-bright);overflow:hidden;
+  position:relative;
+}
+.weather-widget::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent-strong),var(--accent),transparent);
+}
+.widget-head{
+  padding:11px 14px;display:flex;gap:10px;align-items:center;
+  background:linear-gradient(90deg,rgba(27,124,255,0.18),rgba(27,124,255,0.04));
+  border-bottom:1px solid var(--border);
+}
+.widget-head .icon{font-size:18px;line-height:1;}
+.widget-head .title{font-family:var(--cond);font-weight:700;font-size:15px;letter-spacing:0.5px;color:var(--accent);text-transform:uppercase;}
+.widget-content{padding:14px;}
+.vis-wrap{display:flex;align-items:center;gap:10px;}
+.status-dot{
+  width:9px;height:9px;border-radius:50%;background:var(--ok);flex-shrink:0;
+  box-shadow:0 0 0 3px var(--ok-dim),0 0 8px var(--ok);
+  animation:pulse-ok 2.5s ease-in-out infinite;
+}
+.status-dot.low{
+  background:var(--alert);box-shadow:0 0 0 3px var(--alert-dim),0 0 8px var(--alert);
+  animation:pulse-alert 1.2s ease-in-out infinite;
+}
+@keyframes pulse-ok{0%,100%{opacity:1}50%{opacity:0.6}}
+@keyframes pulse-alert{0%,100%{opacity:1}50%{opacity:0.4}}
+
+.vis-value{font-family:var(--cond);font-weight:800;font-size:1.7rem;letter-spacing:0.5px;line-height:1;color:#fff;}
+.vis-unit{font-family:var(--cond);font-weight:400;font-size:1rem;color:var(--muted);margin-left:2px;}
+.timestamp{margin-top:5px;color:var(--muted);font-size:11px;font-family:var(--mono);display:block;letter-spacing:0.3px;}
+
+/* ── HEADER BLOCK ── */
+.header-block{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;}
+.header-title{
+  font-family:var(--cond);font-size:22px;letter-spacing:2px;font-weight:800;
+  color:var(--accent);text-transform:uppercase;margin:0;
+  text-shadow:0 0 30px rgba(85,193,255,0.3);
+}
+.header-sub{font-family:var(--cond);font-size:11px;letter-spacing:3px;font-weight:400;color:var(--muted);text-transform:uppercase;}
+.header-clocks{display:flex;gap:28px;align-items:center;}
+.clock-group{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.clock-label{font-family:var(--cond);font-size:10px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;}
+.clock-time{
+  font-family:var(--mono);font-size:28px;color:#fff;font-weight:700;letter-spacing:1px;
+  text-shadow:0 0 20px rgba(85,193,255,0.25);
+}
+.clock-date{font-family:var(--cond);font-size:12px;color:var(--muted);letter-spacing:0.5px;}
+.clock-sep{width:1px;height:44px;background:linear-gradient(180deg,transparent,var(--border-bright),transparent);}
+
+/* ── CONTROLS ── */
+.controls-wrap{display:flex;flex-direction:column;gap:7px;align-items:flex-end;}
+.btn-primary{
+  padding:8px 14px;border-radius:8px;border:1px solid rgba(27,124,255,0.3);
+  background:linear-gradient(180deg,rgba(27,124,255,0.9),rgba(11,90,200,0.9));
+  color:#fff;cursor:pointer;font-family:var(--cond);font-weight:700;font-size:13px;
+  letter-spacing:0.8px;text-transform:uppercase;
+  box-shadow:0 4px 14px rgba(27,124,255,0.25),inset 0 1px 0 rgba(255,255,255,0.12);
+  height:34px;display:inline-flex;align-items:center;gap:8px;
+  transition:all 0.15s ease;white-space:nowrap;
+}
+.btn-primary:hover{background:linear-gradient(180deg,rgba(40,140,255,0.95),rgba(20,100,220,0.95));box-shadow:0 6px 20px rgba(27,124,255,0.35);}
+.btn-primary:active{transform:translateY(1px);}
+.btn-primary[disabled]{opacity:.5;cursor:not-allowed;}
+.btn-ghost{
+  padding:7px 12px;border-radius:8px;border:1px solid var(--border);
+  background:rgba(255,255,255,0.02);color:var(--accent);cursor:pointer;
+  font-family:var(--cond);font-size:12px;letter-spacing:0.8px;text-transform:uppercase;
+  font-weight:600;height:34px;transition:all 0.15s ease;white-space:nowrap;
+}
+.btn-ghost:hover{background:rgba(85,193,255,0.06);border-color:var(--border-bright);}
+.btn-row{display:flex;gap:7px;align-items:center;}
+
+/* ── CONTENT WRAPPER ── */
+.content-wrapper{width:100%;max-width:1240px;}
+.table-wrapper{width:100%;margin:10px 0;padding:0;}
+
+/* ── SECTION HEADER ── */
+.section-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;padding:0 2px;
+}
+.section-title{
+  font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:2.5px;
+  text-transform:uppercase;color:var(--muted);
+  display:flex;align-items:center;gap:8px;
+}
+.section-title::before{
+  content:'';width:16px;height:2px;
+  background:linear-gradient(90deg,var(--accent-strong),transparent);
+  border-radius:2px;
+}
+.section-controls{display:flex;gap:8px;align-items:center;}
+
+/* ── TABLES ── */
+.table-card{
+  border-radius:var(--radius-lg);overflow:hidden;
+  border:1px solid var(--border);
+  box-shadow:var(--shadow-sm);
+  background:var(--table-card-bg);
+  backdrop-filter:blur(8px);
+}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);color:#ffffff;font-size:20px;}
+thead{position:sticky;top:0;z-index:2;}
+th{
+  background:var(--th-bg);color:var(--muted);font-weight:700;
+  font-size:11px;text-transform:uppercase;letter-spacing:2px;padding:13px 16px;
+  border-bottom:1px solid var(--border-bright);font-family:var(--cond);
+  text-align:center;white-space:nowrap;
+}
+th:first-child{text-align:left;padding-left:20px;}
+td{
+  padding:16px 16px;border-bottom:1px solid rgba(32,52,80,0.5);
+  text-align:center;vertical-align:middle;font-size:19px;color:#ffffff;
+  transition:background 0.2s;letter-spacing:0.3px;
+}
+td:first-child{text-align:left;padding-left:20px;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover td{background:rgba(85,193,255,0.04);}
+
+td.station{
+  font-family:var(--cond);font-weight:800;color:var(--accent);font-size:26px;
+  letter-spacing:1.5px;
+}
+td.time{font-size:17px;color:#ffffff;font-family:var(--mono);}
+td.wind{font-size:18px;color:#ffffff;font-weight:700;}
+td.clouds{font-size:17px;color:#ffffff;}
+
+/* Status cells */
+tr.stale td{opacity:.5;}
+tr.stale td.station::after{content:' ∅';font-size:12px;color:var(--alert);}
+td.alert{
+  color:var(--alert) !important;
+  background:var(--alert-dim) !important;
+}
+td.clouds.cloud-critical{
+  color:var(--alert) !important;background:var(--alert-dim) !important;
+  box-shadow:inset 0 0 16px rgba(255,95,95,0.08);
+}
+td.wx.wx-critical{color:var(--alert) !important;background:var(--alert-dim) !important;}
+
+/* Time updated highlight */
+.time-updated{
+  background:rgba(27,124,255,0.18) !important;color:#fff !important;
+  font-weight:700;transition:all 0.6s;
+}
+.time-updated.dim{opacity:0.4 !important;}
+
+/* ── HISTORY / FORECAST EXPANDABLE PANEL ── */
+tr.data-row td.station{cursor:pointer;position:relative;padding-right:26px;}
+tr.data-row td.station:hover{background:rgba(85,193,255,0.06);}
+tr.data-row td.station::after{
+  content:'›';position:absolute;right:8px;top:50%;transform:translateY(-50%) rotate(90deg);
+  font-size:13px;color:var(--muted);transition:transform 0.25s ease;
+}
+tr.data-row.expanded td.station::after{transform:translateY(-50%) rotate(-90deg);color:var(--accent);}
+
+tr.history-row{display:none;}
+tr.history-row.open{display:table-row;}
+tr.history-row td{
+  background:rgba(3,12,22,0.85);padding:0;border-bottom:2px solid var(--border-bright);
+}
+.history-panel{padding:16px 20px;display:flex;flex-direction:column;gap:14px;}
+.history-panel-header{
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+}
+.history-panel-title{
+  font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--accent);
+}
+.history-panel-sub{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:0.5px;}
+
+.history-table-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border);}
+table.history-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px;}
+table.history-table th{
+  background:rgba(8,30,56,0.8);color:var(--muted);font-weight:700;font-size:9px;
+  text-transform:uppercase;letter-spacing:1.2px;padding:7px 10px;text-align:center;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+}
+table.history-table td{
+  padding:7px 10px;text-align:center;color:#ffffff;font-size:12px;
+  border-bottom:1px solid rgba(32,52,80,0.35);white-space:nowrap;
+}
+table.history-table tr:last-child td{border-bottom:none;}
+table.history-table tr:first-child td{background:rgba(85,193,255,0.06);font-weight:700;}
+table.history-table td.h-time{color:var(--accent);font-weight:700;text-align:left;padding-left:14px;}
+
+.history-empty{
+  padding:14px;text-align:center;color:var(--muted);font-family:var(--cond);
+  font-size:12px;letter-spacing:0.5px;background:rgba(255,255,255,0.02);border-radius:8px;
+}
+.history-loading{
+  padding:14px;text-align:center;color:var(--muted);font-family:var(--cond);
+  font-size:12px;letter-spacing:1px;text-transform:uppercase;
+}
+
+/* Forecast mini-panel */
+.forecast-box{
+  border-radius:10px;border:1px solid var(--border-bright);
+  background:linear-gradient(135deg,rgba(27,124,255,0.06),rgba(85,193,255,0.02));
+  padding:12px 16px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;
+}
+.forecast-icon{font-size:28px;line-height:1;flex-shrink:0;margin-top:2px;}
+.forecast-body{flex:1;min-width:200px;}
+.forecast-label{
+  font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--accent);margin-bottom:4px;
+}
+.forecast-text{font-family:var(--sans);font-size:13px;color:#ffffff;line-height:1.5;}
+.forecast-trend-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.trend-tag{
+  font-family:var(--cond);font-size:10px;letter-spacing:0.8px;text-transform:uppercase;
+  padding:3px 9px;border-radius:12px;background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);color:var(--muted);
+}
+.trend-tag.tag-up{color:#ff8c42;border-color:rgba(255,140,66,0.3);}
+.trend-tag.tag-down{color:#3fcf82;border-color:rgba(63,207,130,0.3);}
+.trend-tag.tag-warn{color:#ff5f5f;border-color:rgba(255,95,95,0.35);}
+
+/* Raw rows */
+tr.raw td{
+  background:var(--raw-bg);text-align:left;color:#ffffff;
+  padding:10px 20px;white-space:pre-wrap;font-size:12px;border-top:none;
+  border-bottom:1px solid rgba(32,52,80,0.6);font-family:var(--mono);
+  letter-spacing:0.3px;line-height:1.6;
+}
+.raw-current{font-size:12px;color:#ffffff;display:block;white-space:pre-wrap;opacity:0.92;}
+.raw-past{
+  margin-top:6px;font-size:11px;color:rgba(200,220,255,0.55);display:block;
+  padding-top:6px;border-top:1px solid rgba(32,52,80,0.5);
+}
+
+/* Last updated bar */
+.status-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:8px 16px;background:var(--statusbar-bg);border-top:1px solid var(--border);
+  border-radius:0 0 var(--radius-lg) var(--radius-lg);font-size:11px;color:var(--muted);
+  font-family:var(--mono);letter-spacing:0.3px;
+}
+.status-bar .dot-live{
+  width:6px;height:6px;border-radius:50%;background:var(--ok);
+  display:inline-block;margin-right:6px;
+  box-shadow:0 0 6px var(--ok);animation:pulse-ok 2s infinite;
+}
+
+/* ── TAF TABLE — same sizing as METAR ── */
+#taf-table{font-size:20px;}
+#taf-table th{font-size:11px;padding:13px 16px;letter-spacing:2px;}
+#taf-table td{font-size:19px;padding:16px 16px;color:#ffffff;}
+/* ── FIX: TAF station names match METAR accent colour ── */
+#taf-table td.station{color:var(--accent);font-size:26px;font-family:var(--cond);font-weight:800;letter-spacing:1.5px;}
+#taf-table td.time{font-size:17px;}
+#taf-table td.wind{font-size:18px;font-weight:700;}
+#taf-table td.clouds{font-size:17px;}
+
+/* TAF raw row */
+tr.taf-raw-row td{
+  background:var(--raw-bg);text-align:left;color:#ffffff;
+  padding:10px 20px;white-space:pre-wrap;font-size:12px;border-top:none;
+  border-bottom:1px solid rgba(32,52,80,0.6);font-family:var(--mono);
+  letter-spacing:0.3px;line-height:1.6;
+}
+.taf-raw-text{font-size:12px;color:rgba(200,225,255,0.85);display:block;white-space:pre-wrap;word-break:break-word;line-height:1.65;}
+
+/* TAF change-group sub-rows (TEMPO / BECMG / PROB / FM) */
+tr.taf-change-row td{
+  padding:10px 16px;border-bottom:1px solid rgba(32,52,80,0.35);
+  font-size:15px;color:rgba(200,225,255,0.82);vertical-align:middle;
+  background:rgba(4,14,28,0.55);
+}
+tr.taf-change-row td:first-child{
+  padding-left:20px;font-family:var(--cond);font-weight:700;font-size:13px;
+  letter-spacing:1.5px;text-transform:uppercase;white-space:nowrap;
+}
+tr.taf-change-row:last-of-type td{border-bottom:1px solid rgba(32,52,80,0.5);}
+tr.taf-change-row:hover td{background:rgba(85,193,255,0.04);}
+/* type-specific left accent */
+tr.taf-change-row.type-TEMPO td:first-child{color:#f59e0b;}
+tr.taf-change-row.type-BECMG td:first-child{color:#3fcf82;}
+tr.taf-change-row.type-PROB  td:first-child{color:#a78bfa;}
+tr.taf-change-row.type-FM    td:first-child{color:#55c1ff;}
+/* alert colours in sub-rows */
+tr.taf-change-row td.alert{color:var(--alert)!important;background:var(--alert-dim)!important;}
+tr.taf-change-row td.cloud-critical{color:var(--alert)!important;background:var(--alert-dim)!important;}
+tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--alert-dim)!important;}
+/* night mode tints */
+:root.night tr.taf-change-row td{background:rgba(12,6,0,0.6);color:rgba(220,180,100,0.7);}
+:root.night tr.taf-change-row.type-TEMPO td:first-child{color:#cc8800;}
+:root.night tr.taf-change-row.type-BECMG td:first-child{color:#28a060;}
+:root.night tr.taf-change-row.type-PROB  td:first-child{color:#9370db;}
+:root.night tr.taf-change-row.type-FM    td:first-child{color:#cc8800;}
+
+/* SYNOP table */
+#synop-table{font-size:15px;}
+#synop-table th{font-size:10px;padding:9px 14px;}
+#synop-table td{font-size:13px;padding:12px 14px;color:#ffffff;}
+.synop-raw{
+  font-family:var(--mono);font-size:13px;color:rgba(200,225,255,0.9);
+  white-space:pre-wrap;word-break:break-word;line-height:1.65;letter-spacing:0.3px;
+}
+
+/* ── STATIONS DASHBOARD ── */
+.stations-card{
+  margin-top:8px;padding:16px;border-radius:var(--radius-lg);
+  background:rgba(6,24,42,0.6);border:1px solid var(--border);
+  backdrop-filter:blur(8px);
+}
+.stations-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.stations-title{font-family:var(--cond);font-size:18px;font-weight:800;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;}
+.stations-sub{font-family:var(--cond);font-size:11px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-top:2px;}
+.stations{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;}
+
+.station-row{
+  padding:14px;border-radius:10px;
+  background:linear-gradient(135deg,var(--station-row-bg1),var(--station-row-bg2));
+  border:1px solid rgba(55,130,200,0.1);
+  transition:all 0.2s ease;position:relative;overflow:hidden;
+}
+.station-row::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(85,193,255,0.2),transparent);
+}
+.station-row:hover{border-color:rgba(85,193,255,0.18);background:linear-gradient(135deg,rgba(12,35,60,0.95),rgba(8,24,44,0.95));}
+.station-top{display:flex;justify-content:space-between;align-items:center;}
+.station-name{font-family:var(--cond);font-weight:700;font-size:15px;color:var(--accent);letter-spacing:0.5px;}
+.station-time{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px;}
+.param{
+  background:rgba(255,255,255,0.03);padding:7px 11px;border-radius:7px;
+  font-size:12px;color:var(--muted);display:inline-flex;flex-direction:column;
+  align-items:center;gap:2px;border:1px solid rgba(255,255,255,0.04);
+}
+.param .label{font-family:var(--cond);font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);}
+.param .value{font-family:var(--cond);font-weight:700;font-size:16px;color:#d0e8ff;}
+.params-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;}
+.wind-rose{width:70px;height:70px;flex-shrink:0;}
+.wind-rose svg{width:100%;height:100%;}
+
+/* Summary pills */
+.summary{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+.pill{
+  padding:5px 12px;border-radius:20px;background:rgba(255,255,255,0.03);
+  border:1px solid var(--border);font-family:var(--cond);font-size:12px;
+  color:var(--muted);letter-spacing:0.5px;
+}
+.pill span{color:var(--accent);font-weight:700;}
+
+/* Map */
+.map-container{height:58vh;border-radius:10px;overflow:hidden;margin-top:12px;border:1px solid var(--border);}
+#map{width:100%;height:100%;}
+.legend{
+  background:rgba(6,18,34,0.92);padding:10px 12px;border-radius:8px;
+  color:var(--text);font-family:var(--cond);font-size:12px;
+  border:1px solid var(--border);backdrop-filter:blur(8px);
+}
+.legend .row{display:flex;align-items:center;gap:8px;margin-bottom:5px;letter-spacing:0.3px;}
+.legend .row:last-child{margin-bottom:0;}
+.dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.dot.ok{background:var(--ok);box-shadow:0 0 6px var(--ok);}
+.dot.warn{background:var(--alert);box-shadow:0 0 6px var(--alert);}
+.dot.danger{background:#ff8a5b;box-shadow:0 0 6px #ff8a5b;}
+.dot.error{background:#ffb3c7;box-shadow:0 0 6px #ffb3c7;}
+
+/* Map search */
+.map-search{
+  padding:8px 12px;border-radius:8px;border:1px solid var(--border);
+  background:rgba(255,255,255,0.04);color:var(--text);font-family:var(--sans);
+  font-size:13px;width:240px;outline:none;transition:border-color 0.2s;
+}
+.map-search:focus{border-color:var(--border-bright);}
+.map-search::placeholder{color:var(--muted);}
+
+/* ── FOOTER ── */
+.footer{
+  width:100%;max-width:1240px;margin-top:20px;padding:14px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  border-top:1px solid rgba(55,130,200,0.08);
+}
+.footer-brand{font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;}
+.footer-note{font-family:var(--sans);font-size:11px;color:rgba(106,138,170,0.6);letter-spacing:0.3px;}
+
+/* ── ANIMATIONS ── */
+.hidden{display:none !important;}
+.hidden-row{display:none !important;}
+.flash-blue{animation:flashBlue 500ms ease-in-out;}
+@keyframes flashBlue{
+  0%{background:rgba(27,124,255,0.2);}
+  50%{background:rgba(27,124,255,0.3);}
+  100%{background:transparent;}
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.fade-in{animation:fadeIn 0.3s ease-out both;}
+
+/* ── RESPONSIVE ── */
+@media(max-width:960px){
+  .top-row{grid-template-columns:1fr;gap:10px;}
+  .weather-widget{width:100%;}
+  .header-clocks{gap:16px;}
+  table{font-size:15px;}
+  td{font-size:13px;padding:10px 10px;}
+  td.station{font-size:17px;}
+  .clock-time{font-size:22px;}
+  #synop-table td{font-size:12px;}
+  #taf-table td{font-size:13px;padding:10px 10px;}
+  #taf-table td.station{font-size:17px;}
+}
+</style>
+</head>
+<body>
+<div class="page" id="pageRoot">
+
+  <!-- ═══ TOP ROW ═══ -->
+  <div class="top-row" role="banner">
+    <!-- Vis Widget -->
+    <div class="weather-widget" id="bonaire-vis-widget" tabindex="0" aria-live="polite" role="region" aria-label="Bonaire visibility">
+      <div class="widget-head">
+        <span class="icon">👁</span>
+        <span class="title">Bonaire Visibility</span>
+      </div>
+      <div class="widget-content">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div class="vis-wrap">
+            <div id="vis-status" class="status-dot"></div>
+            <div>
+              <div id="vis-value" class="vis-value" role="status" aria-live="polite">—</div>
+              <span id="vis-timestamp" class="timestamp" style="display:none"></span>
+              <span style="display:flex;gap:10px;margin-top:4px;font-family:var(--cond);font-size:10px;letter-spacing:1px;">
+                <span style="color:var(--ok)">● &gt;10 km</span>
+                <span style="color:var(--warn)">● 6–9 km</span>
+                <span style="color:var(--alert)">● ≤5 km</span>
+              </span>
+            </div>
+          </div>
+          <button id="vis-refresh-btn" class="btn-primary" aria-label="Refresh Bonaire visibility" style="font-size:11px;padding:6px 10px;height:30px;">↻ Refresh</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="header-block" role="region" aria-label="Regional header">
+      <div style="text-align:center;margin-bottom:4px;">
+        <div class="header-sub">Caribbean</div>
+        <div class="header-title">Regional Weather Centre</div>
+      </div>
+      <div class="header-clocks" aria-hidden="false">
+        <div class="clock-group">
+          <div class="clock-label">Local</div>
+          <div id="local-clock" class="clock-time">--:--:--</div>
+          <div id="local-date" class="clock-date">--</div>
+        </div>
+        <div class="clock-sep"></div>
+        <div class="clock-group">
+          <div class="clock-label">UTC</div>
+          <div id="utc-clock" class="clock-time">--:--:--</div>
+          <div id="utc-date" class="clock-date">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-wrap" role="toolbar" aria-label="Controls">
+      <div class="btn-row">
+        <button id="mute-btn" class="btn-ghost" aria-pressed="false">🔊 Mute</button>
+        <button id="notify-btn" class="btn-ghost" aria-pressed="false" title="Browser notifications for the TNCA special alarm">🔔 Notify: Off</button>
+        <button id="test-btn" class="btn-ghost">⚗ Test Mode</button>
+        <button id="night-btn" class="btn-ghost" aria-pressed="false" title="Toggle Night Mode">🌙 Night</button>
+      </div>
+      <button id="refresh-btn" class="btn-primary" title="Refresh METARs & Vis">↻ Refresh All</button>
+    </div>
+  </div>
+
+  <!-- ═══ CONTENT ═══ -->
+  <div class="content-wrapper">
+
+    <!-- METAR Section -->
+    <div id="metarSection" class="table-wrapper fade-in">
+      <div class="section-header">
+        <div class="section-title">METAR Observations</div>
+        <div class="section-controls">
+          <button id="metar-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Refresh METAR">↻ METAR</button>
+          <button id="switchToStations" class="btn-ghost">⊞ Stations Dashboard</button>
+        </div>
+      </div>
+      <div class="table-card">
+        <table class="metar-table" aria-label="METAR list">
+          <thead>
+            <tr>
+              <th>ICAO</th><th>Time (Z)</th><th>Wind</th><th>Vis</th><th>Wx</th><th>Cloud</th><th>Temp / Dew</th><th>QNH (hPa / inHg)</th>
+            </tr>
+          </thead>
+          <tbody id="metar"></tbody>
+        </table>
+        <div class="status-bar">
+          <span><span class="dot-live"></span><span id="last-updated">METAR last updated: --:--</span></span>
+          <span style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:rgba(106,138,170,0.5);">Click ICAO for 6h history &amp; outlook · Auto-refresh every 30s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAF Section -->
+    <div id="tafSection" class="table-wrapper fade-in">
+      <div class="section-header">
+        <div class="section-title">Terminal Aerodrome Forecast</div>
+        <div class="section-controls">
+          <button id="taf-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Load TAFs">↻ Load TAFs</button>
+        </div>
+      </div>
+      <div class="table-card">
+        <table id="taf-table" aria-label="TAF list">
+          <thead>
+            <tr>
+              <th>ICAO</th><th>Valid (Z)</th><th>Wind</th><th>Vis</th><th>Wx</th><th>Cloud</th><th>Temp / Dew</th><th>QNH (hPa / inHg)</th>
+            </tr>
+          </thead>
+          <tbody id="taf"></tbody>
+        </table>
+        <div class="status-bar"><span id="taf-updated" style="color:var(--muted)">TAF last updated: --:--</span></div>
+      </div>
+    </div>
+
+    <!-- SYNOP Section -->
+    <div id="synopSection" class="table-wrapper fade-in">
+      <div class="section-header">
+        <div class="section-title">SYNOP Reports</div>
+        <div class="section-controls">
+          <button id="synop-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Load SYNOPs">↻ Load SYNOPs</button>
+        </div>
+      </div>
+      <div class="table-card">
+        <table id="synop-table" aria-label="SYNOP list">
+          <thead><tr><th style="text-align:left;padding-left:18px;">Source</th><th style="text-align:left;">Raw SYNOP</th></tr></thead>
+          <tbody id="synop"></tbody>
+        </table>
+        <div class="status-bar"><span id="synop-updated" style="color:var(--muted)">SYNOP last updated: --:--</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ STATIONS DASHBOARD ═══ -->
+  <section id="stationsSection" class="stations-card hidden content-wrapper" aria-hidden="true">
+    <div class="stations-header">
+      <div>
+        <div class="stations-title">Stations Dashboard</div>
+        <div class="stations-sub">Live surface observations · Wind roses · Map view</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <span id="stationsLastFetched" style="color:var(--muted);font-size:11px;font-family:var(--mono);">Last fetched: —</span>
+        <button id="toggleMap" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;">🗺 Map View</button>
+        <button id="backToMetar" class="btn-ghost">← Back to METAR</button>
+      </div>
+    </div>
+
+    <div id="stationsList" class="stations" aria-live="polite">
+      <div style="padding:20px;color:var(--muted);font-family:var(--cond);letter-spacing:1px;text-transform:uppercase;font-size:12px;">Loading stations…</div>
+    </div>
+
+    <div class="summary">
+      <div class="pill">Total: <span id="totalCount">0</span></div>
+      <div class="pill">Alerts: <span id="alertCount">0</span></div>
+      <div class="pill">Stale: <span id="staleCount">0</span></div>
+      <div class="pill">Most recent: <span id="mostRecent">—</span></div>
+    </div>
+
+    <div id="stationsMapCard" class="hidden" style="margin-top:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;">
+        <div style="display:flex;gap:10px;align-items:center;">
+          <input id="mapSearch" type="text" class="map-search" placeholder="Filter stations on map…"/>
+          <span style="color:var(--muted);font-family:var(--mono);font-size:11px;" id="mapLastFetched">Last fetched: —</span>
+        </div>
+        <div class="legend" id="mapLegend">
+          <div class="row"><div class="dot ok"></div><span>OK</span></div>
+          <div class="row"><div class="dot warn"></div><span>Alert</span></div>
+          <div class="row"><div class="dot danger"></div><span>Critical</span></div>
+          <div class="row"><div class="dot error"></div><span>Date mismatch</span></div>
+        </div>
+      </div>
+      <div class="map-container"><div id="map"></div></div>
+    </div>
+  </section>
+
+  <!-- ═══ FOOTER ═══ -->
+  <div class="footer" role="contentinfo">
+    <div class="footer-brand">⬡ GNIUS · RWC</div>
+    <div class="footer-note">Bonaire visibility sourced from KNMI Bonaire Current · Data auto-refreshes every 30s</div>
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+'use strict';
+
+/* ── CONFIG ── */
+const STATIONS = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+const METAR_TEMPLATE = 'https://tgftp.nws.noaa.gov/data/observations/metar/stations/{ICAO}.TXT';
+const TAF_TEMPLATE = 'https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/{ICAO}.TXT';
+const KNMI_BONAIRE_URL = 'https://www.knmidc.org/weather/bonaire/?Current';
+const METAR_REFRESH_MS = 30000;
+const VIS_REFRESH_MS = 60000;
+const REQUEST_TIMEOUT_MS = 12000;
+const FALLBACKS = [
+  { name:'allorigins_json', prefix:'https://api.allorigins.win/get?url=' },
+  { name:'jina_raw', prefix:'https://r.jina.ai/http://'}
+];
+const MAX_RETRIES = 3;
+const BACKOFF_BASE_MS = 500;
+
+/* ── DOM ── */
+const metarTbody = document.getElementById('metar');
+const tafTbody = document.getElementById('taf');
+const synopTbody = document.getElementById('synop');
+const lastUpdatedEl = document.getElementById('last-updated');
+const tafUpdatedEl = document.getElementById('taf-updated');
+const synopUpdatedEl = document.getElementById('synop-updated');
+const visValueEl = document.getElementById('vis-value');
+const visStatusEl = document.getElementById('vis-status');
+const visTsEl = document.getElementById('vis-timestamp');
+
+/* ── STATE ── */
+let mute = false;
+let testMode = false;
+const metarState = {};
+
+/* ── UTILS ── */
+function pad(n){ return n < 10 ? '0' + n : '' + n; }
+function formatLocalDateTimeParts(){ const d=new Date(); return { date:`${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`, time:`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` }; }
+function formatUTCDateTimeParts(){ const d=new Date(); return { date:`${pad(d.getUTCDate())}-${pad(d.getUTCMonth()+1)}-${d.getUTCFullYear()}`, time:`${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}` }; }
+function tickClocks(){
+  try{
+    const l=formatLocalDateTimeParts(), u=formatUTCDateTimeParts();
+    document.getElementById('local-clock').textContent=l.time;
+    document.getElementById('local-date').textContent=l.date;
+    document.getElementById('utc-clock').textContent=u.time;
+    document.getElementById('utc-date').textContent=u.date;
+  }catch(e){}
+}
+tickClocks();
+setInterval(tickClocks,1000);
+
+/* ── AUDIO ── */
+function playBeep(){
+  if(mute) return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type='sine';o.frequency.value=880;g.gain.value=0.015;
+    o.connect(g);g.connect(ctx.destination);o.start();
+    setTimeout(()=>{o.stop();ctx.close();},100);
+  }catch(e){}
+}
+function playCriticalAlarm(){
+  if(mute) return;
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const now=ctx.currentTime,g=ctx.createGain();
+    g.gain.value=0.05;g.connect(ctx.destination);
+    const o1=ctx.createOscillator(),o2=ctx.createOscillator();
+    o1.type='sawtooth';o2.type='sine';
+    o1.frequency.setValueAtTime(520,now);o2.frequency.setValueAtTime(780,now);
+    o1.connect(g);o2.connect(g);o1.start(now);o2.start(now);
+    o1.frequency.exponentialRampToValueAtTime(880,now+0.12);
+    o2.frequency.exponentialRampToValueAtTime(1200,now+0.12);
+    setTimeout(()=>{o1.frequency.exponentialRampToValueAtTime(520,ctx.currentTime+0.02);o2.frequency.exponentialRampToValueAtTime(780,ctx.currentTime+0.02);},140);
+    setTimeout(()=>{const t=ctx.currentTime;o1.frequency.setValueAtTime(600,t);o2.frequency.setValueAtTime(900,t);o1.frequency.exponentialRampToValueAtTime(1000,t+0.08);o2.frequency.exponentialRampToValueAtTime(1400,t+0.08);},220);
+    setTimeout(()=>{o1.stop();o2.stop();ctx.close();},700);
+  }catch(e){}
+}
+/* Special alarm — TNCA gust ≥35kt AND TS/TSRA present. Sounds the critical alarm TWICE. */
+function playSpecialAlarm(){
+  playCriticalAlarm();
+  setTimeout(()=>{playCriticalAlarm();},850);
+}
+
+/* ── BROWSER NOTIFICATIONS ── */
+let notificationsEnabled=false;
+function updateNotifyButton(){
+  const b=document.getElementById('notify-btn');
+  if(!b)return;
+  if(!('Notification' in window)){
+    b.textContent='🔔 Not Supported';b.disabled=true;b.setAttribute('aria-pressed','false');return;
+  }
+  if(Notification.permission==='denied'){
+    b.textContent='🔕 Blocked';b.setAttribute('aria-pressed','false');b.title='Notifications were blocked in browser settings';return;
+  }
+  b.textContent=notificationsEnabled?'🔔 Notify: On':'🔔 Notify: Off';
+  b.setAttribute('aria-pressed',String(notificationsEnabled));
+  b.style.color=notificationsEnabled?'var(--ok)':'var(--accent)';
+}
+async function toggleNotifications(){
+  if(!('Notification' in window)){updateNotifyButton();return;}
+  if(!notificationsEnabled){
+    let perm=Notification.permission;
+    if(perm==='default'){try{perm=await Notification.requestPermission();}catch(e){}}
+    if(perm==='granted'){
+      notificationsEnabled=true;
+      try{localStorage.setItem('rwc-notify-enabled','1');}catch(e){}
+      try{new Notification('Regional Weather Centre',{body:'Notifications enabled — you will be alerted on the TNCA special alarm (gust ≥35kt with TS/TSRA).',icon:undefined,silent:false});}catch(e){}
+    }
+  } else {
+    notificationsEnabled=false;
+    try{localStorage.setItem('rwc-notify-enabled','0');}catch(e){}
+  }
+  updateNotifyButton();
+}
+function sendAlarmNotification(icao,parsed){
+  if(!notificationsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
+  try{
+    const n=new Notification(`⚠ Special Alarm — ${icao}`,{
+      body:`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,
+      tag:`special-alarm-${icao}`,
+      requireInteraction:true,
+      silent:false
+    });
+    n.onclick=()=>{try{window.focus();}catch(e){}n.close();};
+  }catch(e){console.warn('Notification failed',e);}
+}
+try{
+  if(localStorage.getItem('rwc-notify-enabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){
+    notificationsEnabled=true;
+  }
+}catch(e){}
+
+/* ── FETCH ── */
+async function fetchWithTimeout(url,timeout=REQUEST_TIMEOUT_MS,opts={}){
+  const ctrl=new AbortController(),id=setTimeout(()=>ctrl.abort(),timeout);
+  try{ const r=await fetch(url,Object.assign({cache:'no-store',mode:'cors',signal:ctrl.signal},opts)); clearTimeout(id); return r; }
+  catch(e){ clearTimeout(id); throw e; }
+}
+async function robustFetchText(url){
+  try{ const r=await fetchWithTimeout(url,REQUEST_TIMEOUT_MS); if(r&&r.ok){const t=await r.text();if(t&&t.trim())return{ok:true,text:t.trim()};} }catch(e){}
+  try{ const p=FALLBACKS[0].prefix+encodeURIComponent(url),r=await fetchWithTimeout(p,REQUEST_TIMEOUT_MS); if(r&&r.ok){const j=await r.json();if(j&&typeof j.contents==='string'&&j.contents.trim())return{ok:true,text:j.contents.trim()};} }catch(e){}
+  try{ const p2=FALLBACKS[1].prefix+url.replace(/^https?:\/\//,''),r2=await fetchWithTimeout(p2,REQUEST_TIMEOUT_MS*2); if(r2&&r2.ok){const t2=await r2.text();if(t2&&t2.trim())return{ok:true,text:t2.trim()};} }catch(e){}
+  return{ok:false,error:'no content'};
+}
+async function fetchWithRetries(url,attempts=MAX_RETRIES){
+  let lastErr=null;
+  for(let i=0;i<attempts;i++){
+    try{ const o=await robustFetchText(url); if(o&&o.ok&&o.text)return o; lastErr=new Error(o&&o.error?o.error:'No content'); }
+    catch(err){ lastErr=err; }
+    const backoff=BACKOFF_BASE_MS*Math.pow(2,i)+Math.floor(Math.random()*Math.min(500,BACKOFF_BASE_MS*Math.pow(2,i)));
+    await new Promise(r=>setTimeout(r,backoff));
+  }
+  return{ok:false,error:lastErr?String(lastErr):'fetch failed'};
+}
+
+/* ── KNMI VISIBILITY ── */
+function extractKnmiBonaireVisibility(text){
+  if(!text||!text.trim())return null;
+  const s=String(text).replace(/\u00A0/g,' ').replace(/\s+/g,' ');
+  let m=s.match(/Visibility\s*\(?m?\)?[^0-9]{0,30}([0-9]{3,6})\b/i);if(m&&m[1])return`${m[1]} m`;
+  m=s.match(/Visibiliteit\s*\(?m?\)?[^0-9]{0,30}([0-9]{3,6})\b/i);if(m&&m[1])return`${m[1]} m`;
+  m=s.match(/Zicht(?:baarheid)?\s*\(?m?\)?[^0-9]{0,30}([0-9]{3,6})\b/i);if(m&&m[1])return`${m[1]} m`;
+  m=s.match(/\b([0-9]{3,6})\s?(?:m|meter|meters)\b/i);if(m&&m[1])return`${m[1]} m`;
+  const allNums=Array.from(s.matchAll(/\b([0-9]{4,6})\b/g)).map(a=>a[1]);
+  if(allNums.length){allNums.sort((a,b)=>b.length-a.length||a.localeCompare(b));return`${allNums[0]} m`;}
+  return null;
+}
+/* Vis colour thresholds (metres):
+   > 10000 → green   6000–9999 → amber   ≤ 5000 → red */
+function applyVisColor(meters){
+  const DOT=visStatusEl, VAL=visValueEl;
+  DOT.classList.remove('low');
+  if(isNaN(meters)){
+    DOT.style.background='';DOT.style.boxShadow='';
+    VAL.style.color='';return;
+  }
+  let col,shadow;
+  if(meters>10000){
+    col='var(--ok)';shadow='0 0 0 3px var(--ok-dim),0 0 8px var(--ok)';
+    DOT.classList.remove('low');
+  } else if(meters>=6000){
+    col='var(--warn)';shadow='0 0 0 3px rgba(245,158,11,0.15),0 0 8px var(--warn)';
+    DOT.classList.remove('low');
+  } else {
+    col='var(--alert)';shadow='0 0 0 3px var(--alert-dim),0 0 8px var(--alert)';
+    DOT.classList.add('low');
+  }
+  DOT.style.background=col;DOT.style.boxShadow=shadow;
+  VAL.style.color=col;
+}
+
+/* ── FAST PARALLEL FETCH FOR KNMI BONAIRE (visibility loads much quicker) ──
+   Instead of trying direct→allorigins→jina one after another (each with a
+   long timeout, multiplied by retries — worst case well over a minute),
+   race several short-timeout proxies simultaneously and use whichever
+   responds first. Typical resolve time: 1–3 seconds. */
+function firstResolved(promises){
+  return new Promise((resolve,reject)=>{
+    let remaining=promises.length,errors=[];
+    if(!remaining){reject(new Error('no attempts'));return;}
+    promises.forEach(p=>{
+      p.then(resolve).catch(e=>{
+        errors.push(e);remaining--;
+        if(remaining===0)reject(new Error('all knmi fetch attempts failed: '+errors.map(String).join('; ')));
+      });
+    });
+  });
+}
+async function fetchKnmiVisFast(){
+  const FAST_TIMEOUT=7000;
+  const bust=Date.now();
+  const target=KNMI_BONAIRE_URL+(KNMI_BONAIRE_URL.includes('?')?'&':'?')+'_cb='+bust;
+
+  const tryText=async(url,timeout)=>{
+    const r=await fetchWithTimeout(url,timeout);
+    if(!r||!r.ok)throw new Error('bad response');
+    const t=await r.text();
+    if(!t||!t.trim())throw new Error('empty body');
+    return t.trim();
+  };
+  const tryAllOriginsJson=async(url,timeout)=>{
+    const r=await fetchWithTimeout(url,timeout);
+    if(!r||!r.ok)throw new Error('bad response');
+    const j=await r.json();
+    if(!j||typeof j.contents!=='string'||!j.contents.trim())throw new Error('empty contents');
+    return j.contents.trim();
+  };
+
+  const attempts=[
+    tryText('https://api.allorigins.win/raw?url='+encodeURIComponent(target),FAST_TIMEOUT),
+    tryAllOriginsJson('https://api.allorigins.win/get?url='+encodeURIComponent(target),FAST_TIMEOUT),
+    tryText('https://corsproxy.io/?url='+encodeURIComponent(target),FAST_TIMEOUT),
+    tryText(target,4000) // direct — short timeout, rarely succeeds (no CORS) but free if it does
+  ];
+
+  try{
+    const text=await firstResolved(attempts);
+    return{ok:true,text};
+  }catch(e){
+    return{ok:false,error:String(e)};
+  }
+}
+
+async function updateVisFromKnmi(){
+  try{
+    const out=await fetchKnmiVisFast();
+    if(!out||!out.ok||!out.text){
+      visValueEl.textContent='—';visValueEl.style.color='';
+      visStatusEl.classList.remove('low');visStatusEl.style.background='';visStatusEl.style.boxShadow='';
+      visTsEl.style.display='none';return;
+    }
+    const rawVis=extractKnmiBonaireVisibility(String(out.text||''));
+    if(rawVis){
+      const numMatch=rawVis.match(/([0-9]{3,6})/);
+      const meters=numMatch?parseInt(numMatch[1],10):NaN;
+      if(!isNaN(meters)&&meters>=1000){
+        visValueEl.innerHTML=`<span style="font-size:2rem">${(meters/1000).toFixed(1)}</span><span class="vis-unit"> km</span>`;
+      } else {
+        visValueEl.innerHTML=`<span style="font-size:1.7rem">${rawVis.replace(' m','')}</span><span class="vis-unit"> m</span>`;
+      }
+      applyVisColor(meters);
+      // re-apply colour to the inner span after innerHTML set
+      const inner=visValueEl.querySelector('span');if(inner)inner.style.color='inherit';
+      const local=formatLocalDateTimeParts();
+      if(visTsEl){visTsEl.textContent=`Updated ${local.date} ${local.time}`;visTsEl.style.display='block';}
+    } else {
+      visValueEl.textContent='—';visValueEl.style.color='';
+      visStatusEl.classList.remove('low');visStatusEl.style.background='';visStatusEl.style.boxShadow='';
+      if(visTsEl){visTsEl.textContent='Not found in response';visTsEl.style.display='block';}
+    }
+  }catch(e){
+    console.error('updateVisFromKnmi error',e);
+    visValueEl.textContent='—';visValueEl.style.color='';
+    visStatusEl.classList.remove('low');visStatusEl.style.background='';visStatusEl.style.boxShadow='';
+    visTsEl.style.display='none';
+  }
+}
+
+/* ── METAR PARSING ── */
+function cleanForParse(s){if(!s)return'';return String(s).replace(/\sRMK[\s\S]*/i,'').replace(/\s(?:TEMPO|BECMG|PROB\d{2}|FM\d{6})[\s\S]*/i,'').replace(/\bAUTO\b|\bCOR\b/gi,'').trim();}
+function parseMetar(raw){
+  const cleaned=cleanForParse(raw),tokens=cleaned.split(/\s+/);
+  const time=tokens[1]||'--';
+  const windBase=tokens.find(x=>/^(?:VRB|\d{3})\d{2}(?:G\d{2,3})?KT$/.test(x))||'/////KT';
+  const varDir=tokens.find(x=>/^\d{3}V\d{3}$/.test(x));
+  const wind=varDir?`${windBase} ${varDir}`:windBase;
+  const visTokens=tokens.filter(x=>/^\d{4}(?:[NSEW]{1,2})?$/.test(x));
+  const vis=visTokens.length?visTokens.join(' '):'--';
+  const visMin=visTokens.length?Math.min(...visTokens.map(v=>parseInt(v,10)).filter(n=>!isNaN(n))):NaN;
+  const wx=tokens.filter(x=>/^(?:\+|-)?(?:VC)?(?:TS|VCTS|VCSH|TSRA|VCTS|VCSH|SH|SHRA|RA|DZ|SN|FG|BR|HZ|SQ|PO)/.test(x)).join(' ')||'--';
+  const cldMatch=cleaned.match(/((?:FEW|SCT|BKN|OVC)(?:\d{3}|\/{3})(?:TCU|CB)?)/gi)||[];
+  const cld=cldMatch.join(' ')||'--';
+  const td=tokens.find(x=>/^M?\d{2}\/M?\d{2}$/.test(x))||'--';
+  const qp=tokens.find(x=>/^Q\d{4}$/.test(x))||null;
+  let qnh='—';
+  if(qp){const h=qp.slice(1);const inches=(parseInt(h,10)*0.029529983071445).toFixed(2);qnh=`${h} / ${inches}`;}
+  const gust=+(windBase.match(/G(\d{2,3})/)?.[1]||0);
+  let age=0;
+  if(/^\d{6}Z$/.test(time)){
+    const now=new Date(),dd=parseInt(time.slice(0,2),10),hh=parseInt(time.slice(2,4),10),mm=parseInt(time.slice(4,6),10);
+    const tokenUtc=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),dd,hh,mm);
+    age=(Date.now()-tokenUtc)/60000;
+  }
+  return{time,wind,windBase,vis,visTokens,visMin,wx,cld,td,qnh,gust,age,raw:cleaned};
+}
+function setWxCritical(cell,wxText){
+  if(!cell)return false;
+  const txt=String(wxText||'');
+  const hasTS=/\b(?:VCTS|VCSH|TS|TSRA)\b/i.test(txt);
+  const hasSHRA=/\bSHRA\b/i.test(txt);
+  const hasSevere=/(^|\s)(?:\+|-)\s*(?:SHRA|SH|RA|DZ|SN|FG|BR|HZ)/i.test(txt);
+  const hasVCwithSH=/\bVC(?:SH|TS)\b/i.test(txt);
+  const critical=hasTS||hasVCwithSH||hasSevere||hasSHRA;
+  if(critical)cell.classList.add('wx-critical');else cell.classList.remove('wx-critical');
+  return critical;
+}
+function isCloudGroupWithCbTcu(s){if(!s)return false;return/(?:FEW|SCT|BKN|OVC)\d{3}(?:CB|TCU)/i.test(s);}
+
+/* ── BUILD METAR TABLE ── */
+function buildMetarTable(){
+  metarTbody.innerHTML='';
+  STATIONS.forEach(icao=>{
+    metarState[icao]=metarState[icao]||{lastTime:null,lastRaw:null,pastRaw:null,row:null,rawEl:null,pastEl:null,highlightTimeout:null,stats:{winds:[],temps:[],vis:[],wxSummary:''}};
+    const tr=document.createElement('tr');
+    tr.className='data-row';
+    tr.dataset.icao=icao;
+    const rr=document.createElement('tr');
+    rr.className='raw';
+    tr.innerHTML=`<td class="station">${icao}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
+    rr.innerHTML=`<td colspan="8"><span class="raw-current"></span><span class="raw-past"></span></td>`;
+
+    // History / forecast expandable row — lazily populated on first click
+    const hr=document.createElement('tr');
+    hr.className='history-row';
+    hr.dataset.icao=icao;
+    hr.innerHTML=`<td colspan="8"><div class="history-panel" id="history-panel-${icao}"></div></td>`;
+
+    metarTbody.appendChild(tr);
+    metarTbody.appendChild(rr);
+    metarTbody.appendChild(hr);
+    metarState[icao].row=tr;
+    metarState[icao].rawEl=rr.querySelector('.raw-current');
+    metarState[icao].pastEl=rr.querySelector('.raw-past');
+
+    tr.querySelector('td.station').addEventListener('click',(e)=>{
+      e.stopPropagation(); // prevent the cell-copy handler on #metar from firing for this tap
+      toggleHistoryPanel(icao);
+    });
+  });
+}
+buildMetarTable();
+
+function markTimeUpdated(icao){
+  const state=metarState[icao];
+  if(!state||!state.row)return;
+  const timeCell=state.row.querySelector('td.time');
+  if(!timeCell)return;
+  if(state.highlightTimeout){clearTimeout(state.highlightTimeout);state.highlightTimeout=null;}
+  timeCell.classList.add('time-updated');timeCell.classList.remove('dim');
+  state.highlightTimeout=setTimeout(()=>{
+    timeCell.classList.add('dim');
+    setTimeout(()=>{timeCell.classList.remove('time-updated');timeCell.classList.remove('dim');state.highlightTimeout=null;},700);
+  },5*60*1000);
+}
+function extractWindSpeedFromWindBase(windBase){
+  if(!windBase||typeof windBase!=='string')return 0;
+  const m=windBase.match(/^(?:VRB|(\d{3}))(\d{2,3})(?:G(\d{2,3}))?KT$/i);
+  if(!m)return 0;
+  const speed=parseInt(m[2],10);
+  return isNaN(speed)?0:speed;
+}
+
+/* ── SESSION-COLLECTED METAR HISTORY (fallback when NOAA history is unavailable) ── */
+const metarHistorySession={};
+STATIONS.forEach(i=>{metarHistorySession[i]=[];});
+const HISTORY_WINDOW_MS=6*60*60*1000;
+
+function metarTimeTokenToDate(timeStr){
+  if(!/^\d{6}Z$/.test(timeStr||''))return null;
+  const now=new Date();
+  const dd=parseInt(timeStr.slice(0,2),10),hh=parseInt(timeStr.slice(2,4),10),mm=parseInt(timeStr.slice(4,6),10);
+  let d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),dd,hh,mm));
+  // If the resulting date looks like it's in the future (rollover at month boundary), step back a month
+  if(d.getTime()-now.getTime()>6*60*60*1000){
+    d=new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth()-1,dd,hh,mm));
+  }
+  return d;
+}
+
+function pushSessionHistory(icao,raw,parsed){
+  const list=metarHistorySession[icao];
+  if(!list)return;
+  const t=metarTimeTokenToDate(parsed.time)||new Date();
+  if(list.length&&list[0].raw===raw)return; // dedupe identical
+  list.unshift({time:t,raw});
+  const cutoff=Date.now()-HISTORY_WINDOW_MS;
+  while(list.length&&list[list.length-1].time.getTime()<cutoff)list.pop();
+  if(list.length>40)list.length=40;
+}
+
+function renderMetar(icao,raw){
+  try{
+    if(!raw)return false;
+    const lines=String(raw).split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    let metarLine=null;
+    for(const ln of lines){if(ln.startsWith(icao)||/\b\d{6}Z\b/.test(ln)||/^[A-Z]{4}\s+\d{6}Z/.test(ln)){metarLine=ln;break;}}
+    if(!metarLine&&lines.length)metarLine=lines[lines.length-1];
+    if(!metarLine)return false;
+    const parsed=parseMetar(metarLine);
+    const state=metarState[icao];
+    if(!state||!state.row)return false;
+    const tds=state.row.querySelectorAll('td');
+    [2,3,4,5].forEach(i=>{tds[i].classList.remove('alert','cloud-critical','wx-critical');});
+    state.row.classList.toggle('stale',parsed.age>120);
+    if(state.lastRaw&&state.lastRaw!==metarLine)state.pastRaw=state.lastRaw;
+    state.lastRaw=metarLine;
+    const previousTime=state.lastTime;
+    state.lastTime=parsed.time;
+    const isNew=previousTime!==parsed.time;
+    let timeDisplay='--';
+    if(parsed.time&&typeof parsed.time==='string'){
+      const m6=parsed.time.match(/^(\d{2})(\d{2})(\d{2})Z$/),m4=parsed.time.match(/^(\d{2})(\d{2})Z$/);
+      if(m6)timeDisplay=`${m6[2]}:${m6[3]}Z`;
+      else if(m4)timeDisplay=`${m4[1]}:${m4[2]}Z`;
+      else timeDisplay=parsed.time;
+    }
+    tds[1].textContent=timeDisplay;
+    tds[2].textContent=parsed.wind;
+    tds[3].textContent=parsed.vis;
+    tds[4].textContent=parsed.wx;
+    tds[5].textContent=parsed.cld;
+    tds[6].textContent=parsed.td;
+    tds[7].textContent=parsed.qnh;
+    if(state.rawEl)state.rawEl.textContent=state.lastRaw||'';
+    if(state.pastEl){
+      if(state.pastRaw){state.pastEl.style.display='block';state.pastEl.textContent=`Previous: ${state.pastRaw}`;}
+      else{state.pastEl.style.display='none';state.pastEl.textContent='';}
+    }
+    const hasGustToken=/G\d{2,3}KT/i.test(parsed.windBase);
+    const gustValue=parsed.gust||0;
+    const windSpeed=extractWindSpeedFromWindBase(parsed.windBase);
+    const windHasGust=hasGustToken||gustValue>0;
+    const tsPresent=/\b(?:TS|TSRA|VCTS)\b/i.test(parsed.wx);
+    const cloudFlag=isCloudGroupWithCbTcu(parsed.cld);
+    const wxCritical=setWxCritical(tds[4],parsed.wx);
+    if(isNew){playBeep();markTimeUpdated(icao);pushSessionHistory(icao,state.lastRaw,parsed);}
+    if(windHasGust&&isNew)tds[2].classList.add('alert');
+    if(!isNaN(parsed.visMin)&&parsed.visMin<=5000)tds[3].classList.add('alert');
+    if(wxCritical)tds[4].classList.add('alert');
+    if(cloudFlag)tds[5].classList.add('cloud-critical');
+    // ── SPECIAL ALARM ── only TNCA, gust ≥35kt, AND TS/TSRA present. Sounds twice + browser notification.
+    const isSpecialAlarmCondition=(icao==='TNCA'&&gustValue>=35&&tsPresent);
+    if(isNew&&isSpecialAlarmCondition){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
+    if(typeof windSpeed==='number'){state.stats.winds.push(windSpeed);if(state.stats.winds.length>200)state.stats.winds.shift();}
+    if(parsed.td&&typeof parsed.td==='string'){const m=parsed.td.match(/^(M?)(\d{1,2})\/(M?)(\d{1,2})$/);if(m){const sign=m[1]==='M'?-1:1;const tempVal=sign*parseInt(m[2],10);state.stats.temps.push(tempVal);if(state.stats.temps.length>200)state.stats.temps.shift();}}
+    if(!isNaN(parsed.visMin)){state.stats.vis.push(parsed.visMin);if(state.stats.vis.length>200)state.stats.vis.shift();}
+    return true;
+  }catch(e){console.error('renderMetar error',icao,e);return false;}
+}
+
+async function fetchMetarFor(icao){
+  try{
+    const url=METAR_TEMPLATE.replace('{ICAO}',icao);
+    const out=await fetchWithRetries(url,MAX_RETRIES);
+    if(!out||!out.ok||!out.text)return false;
+    const txt=String(out.text).trim(),lines=txt.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+    for(let i=lines.length-1;i>=0;i--){
+      const ln=lines[i];
+      if(ln.startsWith(icao)||/\b\d{6}Z\b/.test(ln)||/^[A-Z]{4}\s+\d{6}Z/.test(ln)){
+        if((icao==='SVMI'||icao==='SVVA')&&/\bAUTO\b/i.test(ln))continue;
+        renderMetar(icao,ln);return true;
+      }
+    }
+    return false;
+  }catch(err){console.error('METAR fetch error for',icao,err);return false;}
+}
+
+async function refreshAllMetars(){
+  try{
+    const results=await Promise.all(STATIONS.map(s=>fetchMetarFor(s)));
+    const local=formatLocalDateTimeParts();
+    if(lastUpdatedEl)lastUpdatedEl.textContent=`Last updated: ${local.date} ${local.time}`;
+    return results.some(Boolean);
+  }catch(e){console.error('refreshAllMetars error',e);return false;}
+}
+
+/* ── TAF PARSING ── */
+
+/** Parse a single TAF segment string into METAR-like columns. */
+function parseTafSegment(segStr, fullText){
+  const tokens=segStr.trim().split(/\s+/);
+
+  // Wind
+  const windBase=tokens.find(x=>/^(?:VRB|\d{3})\d{2}(?:G\d{2,3})?KT$/.test(x))||'--';
+  const varDir=tokens.find(x=>/^\d{3}V\d{3}$/.test(x));
+  const wind=windBase==='--'?'--':(varDir?`${windBase} ${varDir}`:windBase);
+
+  // Vis
+  const visTokens=tokens.filter(x=>/^\d{4}(?:[NSEW]{1,2})?$/.test(x)||x==='9999'||/^P\d+SM$/.test(x));
+  const vis=visTokens.length?visTokens[0]:'--';
+  const visNum=vis==='9999'||/^P/.test(vis)?9999:(parseInt(vis,10)||NaN);
+
+  // Wx
+  const wx=tokens.filter(x=>/^(?:\+|-)?(?:VC)?(?:TS|VCTS|VCSH|TSRA|SH|SHRA|RA|DZ|SN|FG|BR|HZ|SQ|PO)/.test(x)).join(' ')||'--';
+
+  // Cloud
+  const cldMatch=segStr.match(/((?:FEW|SCT|BKN|OVC)(?:\d{3}|\/{3})(?:TCU|CB)?)/gi)||[];
+  const cld=cldMatch.join(' ')||'--';
+
+  // QNH
+  const qp=tokens.find(x=>/^Q\d{4}$/.test(x))||null;
+  let qnh='—';
+  if(qp){const h=qp.slice(1);const inches=(parseInt(h,10)*0.029529983071445).toFixed(2);qnh=`${h} / ${inches}`;}
+
+  return{wind,windBase,vis,visNum,wx,cld,qnh};
+}
+
+/**
+ * Parse a full TAF text into a base record + array of change groups.
+ * Returns: { valid, td, base, changes[], rawFull }
+ * Each change: { type, label, period, wind, windBase, vis, visNum, wx, cld, qnh }
+ */
+function parseTaf(rawText){
+  if(!rawText)return null;
+  const full=rawText.replace(/\r?\n/g,' ').replace(/\s{2,}/g,' ').trim();
+
+  // Valid period
+  const validMatch=full.match(/\b(\d{4}\/\d{4})\b/);
+  const valid=validMatch?validMatch[1]:'--';
+
+  // TX/TN temps (global in TAF)
+  const tempMatches=[...full.matchAll(/T([XN])(M?\d{2})\/\d{4}Z/gi)];
+  let tMax=null,tMin=null;
+  for(const m of tempMatches){
+    const sign=m[2].startsWith('M')?-1:1;
+    const val=sign*parseInt(m[2].replace('M',''),10);
+    if(m[1].toUpperCase()==='X')tMax=val;
+    if(m[1].toUpperCase()==='N')tMin=val;
+  }
+  let td='--';
+  if(tMax!==null&&tMin!==null)td=`${tMax}°/${tMin}°`;
+  else if(tMax!==null)td=`TX ${tMax}°`;
+  else if(tMin!==null)td=`TN ${tMin}°`;
+
+  // Split into segments on TEMPO / BECMG / PROB / FM keywords
+  const CHANGE_RE=/\b(TEMPO|BECMG|PROB\d{2}(?:\s+TEMPO)?|FM\d{6})\b/g;
+  const splitPoints=[];
+  let m2;
+  while((m2=CHANGE_RE.exec(full))!==null){
+    splitPoints.push({idx:m2.index,keyword:m2[1]});
+  }
+
+  // Base = everything before first change keyword
+  const baseEnd=splitPoints.length?splitPoints[0].idx:full.length;
+  const baseStr=full.slice(0,baseEnd);
+  const base=parseTafSegment(baseStr,full);
+
+  // Change groups
+  const changes=[];
+  for(let i=0;i<splitPoints.length;i++){
+    const {idx,keyword}=splitPoints[i];
+    const segEnd=i+1<splitPoints.length?splitPoints[i+1].idx:full.length;
+    const segBody=full.slice(idx+keyword.length,segEnd).trim();
+    const seg=parseTafSegment(segBody,full);
+
+    let type='TEMPO',label=keyword;
+    if(/^FM/.test(keyword)){type='FM';const hhmm=keyword.slice(4,8);label=`FM ${hhmm.slice(0,2)}:${hhmm.slice(2)}`;}
+    else if(/^BECMG/.test(keyword)){type='BECMG';label='BECMG';}
+    else if(/^PROB\d{2}\s+TEMPO/.test(keyword)){type='TEMPO';label=keyword;}
+    else if(/^PROB\d{2}/.test(keyword)){type='PROB';label=keyword;}
+
+    const periodMatch=segBody.match(/^(\d{4}\/\d{4})/);
+    const period=periodMatch?periodMatch[1]:'';
+
+    changes.push({type,label,period,...seg});
+  }
+
+  return{valid,td,base,changes,rawFull:full};
+}
+
+function sanitizeTextForDisplay(text){
+  if(!text)return'';
+  const lines=String(text).split('\n').map(l=>l.trim()).filter(Boolean);
+  const keep=[];
+  for(const line of lines){
+    if(/^\s*URL\s*Source\s*:/i.test(line))continue;
+    if(/^\s*Published\s*Time\s*:/i.test(line))continue;
+    if(/^\s*Markdown\s*Content\s*:/i.test(line))continue;
+    if(/^https?:\/\//i.test(line))continue;
+    keep.push(line);
+  }
+  return keep.join('\n');
+}
+
+/* ── BUILD TAF TABLE ── */
+const TAF_ICAOS = STATIONS.slice(0,3); // TNCA, TNCB, TNCC
+const tafDataStore={}; // icao -> last parsed TAF object, used by the METAR history/forecast panel
+
+function buildTafTable(){
+  tafTbody.innerHTML='';
+  TAF_ICAOS.forEach(icao=>{
+    const tr=document.createElement('tr');
+    tr.dataset.icao=icao;
+    tr.dataset.tafBase='1';
+    tr.innerHTML=`<td class="station">${icao}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
+    const rr=document.createElement('tr');
+    rr.className='taf-raw-row';
+    rr.dataset.icao=icao;
+    rr.innerHTML=`<td colspan="8"><span class="taf-raw-text"></span></td>`;
+    tafTbody.appendChild(tr);
+    tafTbody.appendChild(rr);
+  });
+}
+buildTafTable();
+
+/** Apply alert classes to a set of 8 tds based on parsed segment fields */
+function applyTafAlerts(tds, seg){
+  [2,3,4,5].forEach(i=>tds[i].classList.remove('alert','cloud-critical','wx-critical'));
+  if(seg.windBase!=='--'&&/G\d{2,3}KT/i.test(seg.windBase))tds[2].classList.add('alert');
+  if(!isNaN(seg.visNum)&&seg.visNum<=5000)tds[3].classList.add('alert');
+  const wxCrit=/\b(?:VCTS|VCSH|TS|TSRA)\b/i.test(seg.wx)||/\bSHRA\b/i.test(seg.wx)||/(^|\s)(?:\+|-)\s*(?:SHRA|SH|RA)/i.test(seg.wx);
+  if(wxCrit)tds[4].classList.add('alert','wx-critical');
+  if(/(?:FEW|SCT|BKN|OVC)\d{3}(?:CB|TCU)/i.test(seg.cld))tds[5].classList.add('cloud-critical');
+}
+
+function renderTafRow(icao, rawText){
+  if(!rawText)return;
+  const clean=sanitizeTextForDisplay(rawText);
+  const parsed=parseTaf(clean);
+  if(!parsed)return;
+  tafDataStore[icao]=parsed;
+  // If this station's history panel is currently open, refresh its forecast box with the new TAF
+  const openRow=document.querySelector(`tr.history-row[data-icao="${icao}"].open`);
+  if(openRow)renderForecastBox(icao);
+
+  // ── BASE ROW ──
+  const tr=tafTbody.querySelector(`tr[data-taf-base][data-icao="${icao}"]`);
+  if(!tr)return;
+  const tds=tr.querySelectorAll('td');
+  tds[1].textContent=parsed.valid;
+  tds[2].textContent=parsed.base.wind;
+  tds[3].textContent=parsed.base.vis;
+  tds[4].textContent=parsed.base.wx;
+  tds[5].textContent=parsed.base.cld;
+  tds[6].textContent=parsed.td;
+  tds[7].textContent=parsed.base.qnh;
+  applyTafAlerts(tds, parsed.base);
+
+  // ── RAW ROW ──
+  const rr=tafTbody.querySelector(`tr.taf-raw-row[data-icao="${icao}"]`);
+  if(rr){const span=rr.querySelector('.taf-raw-text');if(span)span.textContent=parsed.rawFull;}
+
+  // ── REMOVE OLD CHANGE SUB-ROWS for this icao ──
+  tafTbody.querySelectorAll(`tr.taf-change-row[data-icao="${icao}"]`).forEach(r=>r.remove());
+
+  // ── INSERT CHANGE ROWS before the raw row ──
+  const insertBefore=rr||null;
+  parsed.changes.forEach(ch=>{
+    const cr=document.createElement('tr');
+    cr.className=`taf-change-row type-${ch.type}`;
+    cr.dataset.icao=icao;
+    cr.innerHTML=`<td>${ch.label}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
+    const ctds=cr.querySelectorAll('td');
+    ctds[1].textContent=ch.period||'--';
+    ctds[2].textContent=ch.wind;
+    ctds[3].textContent=ch.vis;
+    ctds[4].textContent=ch.wx;
+    ctds[5].textContent=ch.cld;
+    ctds[6].textContent='—';
+    ctds[7].textContent=ch.qnh;
+    applyTafAlerts(ctds,ch);
+    if(insertBefore){tafTbody.insertBefore(cr,insertBefore);}
+    else{tafTbody.appendChild(cr);}
+  });
+}
+
+async function loadTafRow(icao){
+  try{
+    const url=TAF_TEMPLATE.replace('{ICAO}',icao);
+    const out=await fetchWithRetries(url,MAX_RETRIES);
+    if(out&&out.ok&&out.text){
+      renderTafRow(icao, out.text);
+      const local=formatLocalDateTimeParts();
+      if(tafUpdatedEl)tafUpdatedEl.textContent=`TAF last updated: ${local.date} ${local.time}`;
+    }
+  }catch(e){console.error('loadTafRow error',icao,e);}
+}
+async function loadAllTafs(){await Promise.all(TAF_ICAOS.map(i=>loadTafRow(i)));}
+
+/* ════════════════════════════════════════════════════
+   6-HOUR HISTORY + MINI FORECAST (click a METAR row)
+════════════════════════════════════════════════════ */
+const STATION_FULL_NAMES={
+  'TNCA':'Aruba — Queen Beatrix','TNCB':'Bonaire — Flamingo','TNCC':'Curaçao — Hato',
+  'TNCM':'Sint Maarten — Princess Juliana','SVMI':'Caracas — Simón Bolívar','SVVA':'Valencia — Arturo Michelena'
+};
+
+/* Try the AviationWeather.gov JSON history API (last 6h). Returns array of {time,raw} or null on failure. */
+async function fetchMetarHistoryNOAA(icao){
+  try{
+    const url=`https://aviationweather.gov/api/data/metar?ids=${icao}&format=json&hours=6`;
+    const out=await fetchWithRetries(url,2);
+    if(!out||!out.ok||!out.text)return null;
+    let data;
+    try{data=JSON.parse(out.text);}catch(e){return null;}
+    if(!Array.isArray(data)||!data.length)return null;
+    const records=data.map(r=>{
+      const rawOb=r.rawOb||r.raw_text||r.metar||'';
+      let t=null;
+      if(r.obsTime)t=new Date(r.obsTime*1000);
+      else if(r.reportTime)t=new Date(r.reportTime);
+      return rawOb?{time:t||new Date(),raw:rawOb}:null;
+    }).filter(Boolean);
+    if(!records.length)return null;
+    records.sort((a,b)=>b.time.getTime()-a.time.getTime());
+    return records;
+  }catch(e){console.warn('NOAA history fetch failed',icao,e);return null;}
+}
+
+/* Resolve the best available history list: NOAA first, session-collected as fallback. */
+async function resolveHistory(icao){
+  const noaa=await fetchMetarHistoryNOAA(icao);
+  if(noaa&&noaa.length)return{source:'NOAA (6h)',records:noaa};
+  const session=metarHistorySession[icao]||[];
+  if(session.length)return{source:'Session-observed',records:session.slice()};
+  return{source:null,records:[]};
+}
+
+function formatHistTime(d){
+  if(!d)return'--';
+  return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}Z`;
+}
+
+function buildHistoryTableHtml(records){
+  if(!records.length)return'<div class="history-empty">No observations available for the past 6 hours.</div>';
+  const rows=records.slice(0,14).map((rec,i)=>{
+    const p=parseMetar(rec.raw);
+    const isLatest=i===0;
+    return `<tr>
+      <td class="h-time">${formatHistTime(rec.time)}</td>
+      <td>${p.wind}</td>
+      <td>${p.vis}</td>
+      <td>${p.wx}</td>
+      <td>${p.cld}</td>
+      <td>${p.qnh!=='—'?p.qnh.split(' / ')[0]:'—'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="history-table-wrap"><table class="history-table">
+    <thead><tr><th>Time (Z)</th><th>Wind</th><th>Vis</th><th>Wx</th><th>Cloud</th><th>QNH</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+/* Simple trend extrapolation from the available history window */
+function computeTrend(records){
+  if(records.length<2)return null;
+  const sorted=records.slice().sort((a,b)=>a.time.getTime()-b.time.getTime());
+  const first=parseMetar(sorted[0].raw), last=parseMetar(sorted[sorted.length-1].raw);
+  const firstWind=extractWindSpeedFromWindBase(first.windBase),lastWind=extractWindSpeedFromWindBase(last.windBase);
+  const windDelta=lastWind-firstWind;
+  const visDelta=(!isNaN(first.visMin)&&!isNaN(last.visMin))?(last.visMin-first.visMin):0;
+  let qnhDelta=0;
+  const qFirst=parseInt(first.qnh,10),qLast=parseInt(last.qnh,10);
+  if(!isNaN(qFirst)&&!isNaN(qLast))qnhDelta=qLast-qFirst;
+  const tags=[];
+  if(windDelta>=5)tags.push({label:'Wind increasing',cls:'tag-up'});
+  else if(windDelta<=-5)tags.push({label:'Wind easing',cls:'tag-down'});
+  if(visDelta<=-2000)tags.push({label:'Vis dropping',cls:'tag-warn'});
+  else if(visDelta>=2000)tags.push({label:'Vis improving',cls:'tag-down'});
+  if(qnhDelta<=-2)tags.push({label:'Pressure falling',cls:'tag-warn'});
+  else if(qnhDelta>=2)tags.push({label:'Pressure rising',cls:'tag-up'});
+  const latestTs=/\b(?:TS|TSRA|VCTS)\b/i.test(last.wx);
+  if(latestTs)tags.push({label:'Thunderstorm active',cls:'tag-warn'});
+  return{windDelta,visDelta,qnhDelta,tags,latest:last};
+}
+
+function pickForecastIcon(latest,tags){
+  const tagLabels=tags.map(t=>t.label).join(' ');
+  if(/\b(?:TS|TSRA|VCTS)\b/i.test(latest.wx))return'⛈️';
+  if(/Vis dropping/.test(tagLabels))return'🌫️';
+  if(/SHRA|RA|DZ/i.test(latest.wx))return'🌧️';
+  if(/OVC/i.test(latest.cld))return'☁️';
+  if(/BKN/i.test(latest.cld))return'🌥️';
+  if(/Wind increasing/.test(tagLabels))return'💨';
+  if(/SCT|FEW/i.test(latest.cld))return'🌤️';
+  return'☀️';
+}
+
+function buildForecastText(icao,trend){
+  const taf=tafDataStore[icao];
+  const parts=[];
+  if(taf&&taf.base){
+    parts.push(`TAF base: ${taf.base.wind!=='--'?taf.base.wind:'calm winds'}, vis ${taf.base.vis}${taf.base.wx!=='--'?', '+taf.base.wx:''}.`);
+    if(taf.changes&&taf.changes.length){
+      const next=taf.changes[0];
+      parts.push(`Next change (${next.label}${next.period?' '+next.period:''}): ${next.wind!=='--'?next.wind:'winds unchanged'}${next.wx!=='--'?', '+next.wx:''}.`);
+    }
+  } else {
+    parts.push('No TAF available for this station — outlook based on recent trend only.');
+  }
+  if(trend&&trend.tags.length){
+    parts.push('Trend: '+trend.tags.map(t=>t.label).join(', ')+'.');
+  } else if(trend){
+    parts.push('Conditions steady over the observed period.');
+  }
+  return parts.join(' ');
+}
+
+function renderForecastBox(icao){
+  const panel=document.getElementById(`history-panel-${icao}`);
+  if(!panel)return;
+  let box=panel.querySelector('.forecast-box');
+  const records=panel.__lastRecords||[];
+  const trend=computeTrend(records);
+  const latest=records.length?parseMetar(records[0].raw):null;
+  const icon=latest?pickForecastIcon(latest,trend?trend.tags:[]):'❔';
+  const text=buildForecastText(icao,trend);
+  const tagsHtml=(trend&&trend.tags.length)?trend.tags.map(t=>`<span class="trend-tag ${t.cls}">${t.label}</span>`).join(''):'';
+  const html=`
+    <div class="forecast-icon">${icon}</div>
+    <div class="forecast-body">
+      <div class="forecast-label">Outlook · ${STATION_FULL_NAMES[icao]||icao}</div>
+      <div class="forecast-text">${text}</div>
+      ${tagsHtml?`<div class="forecast-trend-tags">${tagsHtml}</div>`:''}
+    </div>`;
+  if(box){box.innerHTML=html;}
+  else{
+    box=document.createElement('div');
+    box.className='forecast-box';
+    box.innerHTML=html;
+    panel.appendChild(box);
+  }
+}
+
+async function loadHistoryAndForecast(icao){
+  const panel=document.getElementById(`history-panel-${icao}`);
+  if(!panel)return;
+  panel.innerHTML=`<div class="history-loading">Loading 6-hour history…</div>`;
+  const {source,records}=await resolveHistory(icao);
+  panel.__lastRecords=records;
+  const header=`
+    <div class="history-panel-header">
+      <div class="history-panel-title">Past 6 Hours — ${icao}</div>
+      <div class="history-panel-sub">${source?`Source: ${source}`:'No history source available'}</div>
+    </div>`;
+  const tableHtml=buildHistoryTableHtml(records);
+  panel.innerHTML=header+tableHtml;
+  renderForecastBox(icao);
+  // Make sure TAF for this station is loaded so the forecast box has data (only for TNCA/TNCB/TNCC)
+  if(TAF_ICAOS.includes(icao)&&!tafDataStore[icao]){
+    loadTafRow(icao).then(()=>{if(document.querySelector(`tr.history-row[data-icao="${icao}"].open`))renderForecastBox(icao);});
+  }
+}
+
+function toggleHistoryPanel(icao){
+  const dataRow=document.querySelector(`tr.data-row[data-icao="${icao}"]`);
+  const historyRow=document.querySelector(`tr.history-row[data-icao="${icao}"]`);
+  if(!dataRow||!historyRow)return;
+  const isOpen=historyRow.classList.contains('open');
+  if(isOpen){
+    historyRow.classList.remove('open');
+    dataRow.classList.remove('expanded');
+  } else {
+    // Close any other open panel for a cleaner single-focus view
+    document.querySelectorAll('tr.history-row.open').forEach(r=>{
+      r.classList.remove('open');
+      const otherIcao=r.dataset.icao;
+      const otherRow=document.querySelector(`tr.data-row[data-icao="${otherIcao}"]`);
+      if(otherRow)otherRow.classList.remove('expanded');
+    });
+    historyRow.classList.add('open');
+    dataRow.classList.add('expanded');
+    loadHistoryAndForecast(icao);
+  }
+}
+
+
+/* ── SYNOP ── */
+function buildSynopTable(){
+  synopTbody.innerHTML='';
+  const sources=['TNCA SINU50','TNCA SMNU50','TNCC SI','TNCC SM'];
+  sources.forEach((name,i)=>{
+    const tr=document.createElement('tr');
+    tr.dataset.idx=String(i);
+    tr.innerHTML=`<td class="station">${name}</td><td><div class="synop-raw"></div></td>`;
+    synopTbody.appendChild(tr);
+  });
+}
+buildSynopTable();
+
+async function loadSynopRow(index,url){
+  try{
+    const out=await fetchWithRetries(url,MAX_RETRIES);
+    if(out&&out.ok&&out.text){
+      const row=synopTbody.querySelector(`tr[data-idx="${index}"]`);
+      if(row)row.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(out.text);
+      const local=formatLocalDateTimeParts();
+      if(synopUpdatedEl)synopUpdatedEl.textContent=`SYNOP last updated: ${local.date} ${local.time}`;
+    }
+  }catch(e){console.error('loadSynopRow error',index,e);}
+}
+async function loadAllSynops(){
+  const SYNOP_URLS=[
+    'https://tgftp.nws.noaa.gov/data/raw/si/sinu50.tnca..txt',
+    'https://tgftp.nws.noaa.gov/data/raw/sm/smnu50.tnca..txt',
+    'https://tgftp.nws.noaa.gov/data/raw/si/sica20.tncc..txt',
+    'https://tgftp.nws.noaa.gov/data/raw/sm/smca01.tncc..txt'
+  ];
+  await Promise.all(SYNOP_URLS.map((u,i)=>loadSynopRow(i,u)));
+}
+
+/* ── TEST MODE ── */
+let testInterval=null;
+const TEST_SAMPLES=[
+  {'TNCA':'TNCA 152000Z 35035G50KT 9999 VCSH FEW013CB 28/23 Q1011 NOSIG','TNCB':'TNCB 152000Z 34020G35KT 0400 +TSRA FEW020CB BKN030 26/24 Q0980','TNCC':'TNCC 152000Z 12045G60KT 0500 +TSRA FEW016TCU OVC025 27/25 Q1000','TNCM':'TNCM 152000Z 20015G35KT 0800 SHRA FEW020TCU BKN018 25/23 Q0995','SVMI':'SVMI 152000Z 30025G45KT 9999 VCSH FEW020CB BKN030 28/26 Q1002','SVVA':'SVVA 152000Z 04010G20KT 0300 -SHRA FEW020 BKN025 22/21 Q1008'},
+  {'TNCA':'TNCA 152010Z 35020G40KT 0400 +TSRA FEW020CB BKN030 26/24 Q0980','TNCB':'TNCB 152010Z 09012G30KT 0500 -DZ SCT020 BKN040 24/22 Q1010','TNCC':'TNCC 152010Z 12045G60KT 0500 VCTS FEW020CB OVC025 27/25 Q1000','TNCM':'TNCM 152010Z 20015G35KT 0800 SHRA FEW020TCU BKN018 25/23 Q0995','SVMI':'SVMI 152010Z 30025G45KT 9999 VCTS FEW020CB BKN030 28/26 Q1002','SVVA':'SVVA 152010Z 04010G20KT 0300 -SHRA FEW020 BKN025 22/21 Q1008'},
+  {'TNCA':'TNCA 152020Z 12010KT 9999 FEW020 SCT040 28/24 Q1013','TNCB':'TNCB 152020Z 08008KT 9999 FEW025 SCT050 26/22 Q1015','TNCC':'TNCC 152020Z 14012KT 9999 SCT030 BKN050 27/25 Q1008','TNCM':'TNCM 152020Z 18012KT 9999 FEW020 SCT040 26/24 Q1005','SVMI':'SVMI 152020Z 20015KT 9999 FEW020 SCT030 29/27 Q1009','SVVA':'SVVA 152020Z 06008KT 9999 FEW020 SCT040 24/22 Q1010'}
+];
+
+const TAF_TEST_SAMPLES={
+  'TNCA':'TAF TNCA 011730Z 0118/0218 35025G40KT 9999 FEW020CB TX31/0215Z TN24/0206Z TEMPO 0120/0124 35035G55KT 0500 +TSRA FEW013CB BKN020 BECMG 0202/0204 12015KT 9999 FEW025 FM020600 09010KT 9999 SCT030',
+  'TNCB':'TAF TNCB 011730Z 0118/0218 34018G30KT 9999 SCT025 TX29/0214Z TN23/0207Z TEMPO 0119/0122 0400 +TSRA FEW018CB BKN025 PROB30 TEMPO 0122/0124 0800 SHRA SCT020 BECMG 0206/0208 09012KT 9999 FEW030',
+  'TNCC':'TAF TNCC 011730Z 0118/0218 12020G35KT 9999 SCT020 TX30/0215Z TN24/0206Z TEMPO 0120/0124 0500 TSRA FEW016TCU OVC025 PROB30 0121/0123 0200 +TSRA FEW010CB OVC018 BECMG 0204/0206 14012KT 9999 FEW025'
+};
+
+function applyTestSamples(sample){
+  STATIONS.forEach(icao=>{const raw=sample[icao]||`${icao} 151206Z 09010KT 9999 FEW020 28/24 Q1013`;renderMetar(icao,raw);});
+  TAF_ICAOS.forEach(icao=>{if(TAF_TEST_SAMPLES[icao])renderTafRow(icao,TAF_TEST_SAMPLES[icao]);});
+  const local=formatLocalDateTimeParts();
+  if(lastUpdatedEl)lastUpdatedEl.textContent=`Test data applied: ${local.date} ${local.time}`;
+}
+function startTestRunner(){
+  if(testInterval)clearInterval(testInterval);
+  let idx=0;applyTestSamples(TEST_SAMPLES[idx]);
+  testInterval=setInterval(()=>{idx=(idx+1)%TEST_SAMPLES.length;applyTestSamples(TEST_SAMPLES[idx]);},4000);
+}
+function stopTestRunner(){if(testInterval){clearInterval(testInterval);testInterval=null;}}
+
+/* ── EVENTS ── */
+document.getElementById('metar-refresh-btn')?.addEventListener('click',()=>refreshAllMetars());
+document.getElementById('refresh-btn')?.addEventListener('click',()=>{updateVisFromKnmi();refreshAllMetars();});
+document.getElementById('taf-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('taf-refresh-btn');btn.disabled=true;try{await loadAllTafs();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
+document.getElementById('synop-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('synop-refresh-btn');btn.disabled=true;try{await loadAllSynops();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
+document.getElementById('vis-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('vis-refresh-btn');btn.disabled=true;try{await updateVisFromKnmi();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
+document.getElementById('mute-btn')?.addEventListener('click',()=>{const b=document.getElementById('mute-btn');mute=!mute;b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';});
+document.getElementById('notify-btn')?.addEventListener('click',toggleNotifications);
+updateNotifyButton();
+document.getElementById('test-btn')?.addEventListener('click',()=>{testMode=!testMode;const b=document.getElementById('test-btn');if(b)b.textContent=testMode?'⚗ Exit Test':'⚗ Test Mode';if(testMode)startTestRunner();else stopTestRunner();});
+document.getElementById('night-btn')?.addEventListener('click',()=>{
+  const b=document.getElementById('night-btn');
+  const isNight=document.documentElement.classList.toggle('night');
+  b.setAttribute('aria-pressed',String(isNight));
+  b.textContent=isNight?'☀ Day':'🌙 Night';
+  b.style.color=isNight?'#f59e0b':'var(--accent)';
+  try{localStorage.setItem('rwc-night-mode',isNight?'1':'0');}catch(e){}
+});
+try{if(localStorage.getItem('rwc-night-mode')==='1'){document.documentElement.classList.add('night');const b=document.getElementById('night-btn');if(b){b.setAttribute('aria-pressed','true');b.textContent='☀ Day';b.style.color='#f59e0b';}}}catch(e){}
+
+/* Copy on click */
+document.getElementById('metar')?.addEventListener('click',async e=>{
+  const td=e.target.closest('td');
+  if(!td)return;
+  const tr=td.closest('tr');
+  if(!tr||tr.classList.contains('raw')||tr.classList.contains('history-row'))return;
+  const text=td.textContent.trim();
+  if(!text)return;
+  try{
+    await navigator.clipboard.writeText(text);
+    td.classList.add('flash-blue');setTimeout(()=>td.classList.remove('flash-blue'),600);
+  }catch(err){
+    try{
+      const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+      td.classList.add('flash-blue');setTimeout(()=>td.classList.remove('flash-blue'),600);
+    }catch(e){console.warn('copy failed',e);}
+  }
+});
+
+/* ── INTERVALS ── */
+setInterval(()=>{if(!testMode)refreshAllMetars();},METAR_REFRESH_MS);
+setInterval(()=>{if(!testMode)updateVisFromKnmi();},VIS_REFRESH_MS);
+
+/* ════════════════════════════════════════
+   STATIONS DASHBOARD
+════════════════════════════════════════ */
+const API_BASE='https://curacao-weather-api.generast.workers.dev/';
+const COORDS={
+  "Curaçao International Airport":{lat:12.18889,lon:-68.95972},
+  "Curacao International Airport":{lat:12.18889,lon:-68.95972},
+  "Seru Mahuma":{lat:12.18330,lon:-68.93330},
+  "Santa Maria":{lat:12.16720,lon:-68.93920},
+  "Savonet":{lat:12.35060,lon:-69.10610},
+  "Soto":{lat:12.26670,lon:-69.10000},
+  "Seinpost":{lat:12.10000,lon:-68.85000},
+  "Sun Valley":{lat:12.12000,lon:-68.95000},
+  "Seru Kokori":{lat:12.20000,lon:-68.95000},
+  "Spaanse Water":{lat:12.06730,lon:-68.85010},
+  "Steenrijk":{lat:12.09788,lon:-68.91214}
+};
+const MAP_EXCLUDE=new Set(['Klein Kwartier','Punda']);
+const ISLAND_CENTER={lat:12.16957,lon:-68.99002};
+const ISLAND_BOUNDS=[[11.9177,-69.5311],[12.5478,-68.3707]];
+let currentData=[],map=null,markersLayer=null;
+
+const el=id=>document.getElementById(id);
+function safeNum(v){return(v===null||v===undefined||v==='')?null:Number(v);}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function parseIso(s){if(!s)return null;const d=new Date(s);return isNaN(d)?null:d;}
+function sameLocalDate(a,b){if(!a||!b)return false;return a.getFullYear()===b.getFullYear()&&a.getMonth()===b.getMonth()&&a.getDate()===b.getDate();}
+
+function evaluateStation(row){
+  const now=new Date(),last=parseIso(row.last_updated_iso||row.last_updated);
+  const isStaleDate=!last||!sameLocalDate(now,last);
+  return{alerts:[],severity:isStaleDate?3:0,isStaleDate};
+}
+
+function windRoseSvg(directionDeg,speed){
+  const dir=(typeof directionDeg==='number'&&isFinite(directionDeg))?directionDeg:null;
+  const sp=(typeof speed==='number'&&isFinite(speed))?speed:null;
+  if(dir===null){return`<svg viewBox="0 0 84 84" class="wind-rose"><circle cx="42" cy="42" r="30" stroke="rgba(85,193,255,0.15)" stroke-width="1.5" fill="none"/><text x="42" y="47" fill="rgba(106,138,170,0.6)" font-size="13" text-anchor="middle" font-family="Space Mono,monospace">—</text></svg>`;}
+  const maxLen=27,len=sp?Math.min(maxLen,Math.max(6,(sp/20)*maxLen)):10;
+  const arrowColor=sp>=25?'#ff5f5f':(sp>=15?'#f59e0b':'#3fcf82');
+  const toDeg=(dir+180)%360;
+  return`<svg viewBox="0 0 84 84" class="wind-rose">
+    <defs><marker id="arr${Math.floor(Math.random()*9999)}" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="${arrowColor}"/></marker></defs>
+    <circle cx="42" cy="42" r="30" stroke="rgba(85,193,255,0.15)" stroke-width="1.5" fill="none"/>
+    <circle cx="42" cy="42" r="2" stroke="rgba(85,193,255,0.2)" stroke-width="1" fill="none"/>
+    <g transform="translate(42,42) rotate(${toDeg})">
+      <line x1="0" y1="0" x2="0" y2="${-len}" stroke="${arrowColor}" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="0,${-(len+7)} -4,${-(len)} 4,${-(len)}" fill="${arrowColor}"/>
+      <circle cx="0" cy="0" r="3" fill="${arrowColor}" fill-opacity="0.7"/>
+    </g>
+    <text x="42" y="75" fill="rgba(200,230,255,0.7)" font-size="11" text-anchor="middle" font-family="Space Mono,monospace">${sp!==null?Math.round(sp)+' kn':'—'}</text>
+  </svg>`;
+}
+
+function extractCoords(row){
+  let lat=null,lon=null;
+  const latKeys=['latitude','lat','lat_deg','lat_d','lat_dd'],lonKeys=['longitude','lon','lon_deg','lon_d','lon_dd','lng'];
+  for(const k of latKeys){if(k in row&&row[k]!=null){lat=row[k];break;}}
+  for(const k of lonKeys){if(k in row&&row[k]!=null){lon=row[k];break;}}
+  if(lat==null&&row.location&&row.location.lat)lat=row.location.lat;
+  if(lon==null&&row.location&&row.location.lon)lon=row.location.lon;
+  lat=lat!=null?Number(lat):null;lon=lon!=null?Number(lon):null;
+  if(!isFinite(lat))lat=null;if(!isFinite(lon))lon=null;
+  const name=(row.station||'').trim();
+  if((lat==null||lon==null)&&name){
+    if(COORDS[name]){lat=COORDS[name].lat;lon=COORDS[name].lon;}
+    else{const lower=name.toLowerCase();for(const key of Object.keys(COORDS)){if(key.toLowerCase().includes(lower)||lower.includes(key.toLowerCase())){lat=COORDS[key].lat;lon=COORDS[key].lon;break;}}}
+  }
+  return(lat!=null&&lon!=null)?{lat:Number(lat),lon:Number(lon)}:null;
+}
+
+function initMap(){
+  if(map)return;
+  map=L.map('map',{zoomControl:true}).setView([ISLAND_CENTER.lat,ISLAND_CENTER.lon],11);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+  markersLayer=L.layerGroup().addTo(map);
+  try{map.fitBounds(ISLAND_BOUNDS,{padding:[40,40]});}catch(e){console.warn(e);}
+}
+
+function markerColorForSeverity(sev){
+  if(sev===3)return'#ffb3c7';if(sev===2)return'#ef4444';if(sev===1)return'#f59e0b';return'#3fcf82';
+}
+function addMarkersToMap(rows){
+  if(!map)initMap();
+  markersLayer.clearLayers();
+  rows.forEach(r=>{
+    const name=(r.station||'').trim();
+    if(MAP_EXCLUDE.has(name))return;
+    const coords=extractCoords(r);
+    if(!coords)return;
+    const ev=evaluateStation(r),color=markerColorForSeverity(ev.severity);
+    const circle=L.circleMarker([coords.lat,coords.lon],{radius:10,fillColor:color,color:'#00000022',weight:1,fillOpacity:0.9});
+    const windDeg=r.wind_direction_deg!=null?Number(r.wind_direction_deg):null;
+    const windSp=r.wind_speed_knots!=null?Number(r.wind_speed_knots):null;
+    const roseHtml=windRoseSvg(windDeg,windSp);
+    const popupHtml=`<div style="display:flex;gap:10px;align-items:flex-start;min-width:240px;background:rgba(6,24,42,0.98);padding:12px;border-radius:8px;">${roseHtml}<div style="font-family:'Barlow Condensed',sans-serif;"><strong style="font-size:15px;color:#55c1ff;">${escapeHtml(r.station||'—')}</strong><br/><small style="color:#6a8aaa;">${escapeHtml(r.last_updated||'—')}</small><hr style="margin:8px 0;border:none;border-top:1px solid rgba(55,130,200,0.15)"/><div style="font-size:13px;"><strong>Temp:</strong> ${r.temperature_c!=null?r.temperature_c.toFixed(1)+' °C':'—'}</div><div style="font-size:13px;"><strong>Wind:</strong> ${windSp!=null?windSp+' kn':'—'} (${r.wind_direction_text||'—'})</div></div></div>`;
+    circle.bindPopup(popupHtml,{maxWidth:380,className:'dark-popup'});
+    circle.addTo(markersLayer);
+  });
+}
+
+function renderStationsList(rows){
+  const list=el('stationsList');
+  if(!rows.length){list.innerHTML='<div style="padding:20px;color:var(--muted);font-family:var(--cond);letter-spacing:1px;text-transform:uppercase;font-size:12px;">No stations available</div>';return;}
+  let alertCount=0,staleCount=0,mostRecent=null;
+  list.innerHTML=rows.map(r=>{
+    const ev=evaluateStation(r);
+    if(ev.alerts.length)alertCount++;
+    if(ev.isStaleDate)staleCount++;
+    if(!mostRecent&&r.last_updated)mostRecent=r.last_updated;
+    const temp=r.temperature_c!==null?r.temperature_c.toFixed(1)+'°C':'—';
+    const windKn=r.wind_speed_knots!==null?r.wind_speed_knots:null;
+    const windDeg=r.wind_direction_deg!==null?Number(r.wind_direction_deg):null;
+    const windText=r.wind_direction_text||r.wind_direction||'—';
+    const rose=windRoseSvg(windDeg,windKn);
+    return`<div class="station-row">
+      <div class="station-top">
+        <div style="display:flex;gap:12px;align-items:center;">
+          ${rose}
+          <div>
+            <div class="station-name">${escapeHtml(r.station)}</div>
+            <div class="station-time">${escapeHtml(r.last_updated||'—')}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;">
+          <div class="param"><span class="label">Temp</span><span class="value">${temp}</span></div>
+          <div class="param"><span class="label">Wind</span><span class="value">${windKn!==null?windKn+' kn':'—'}</span></div>
+        </div>
+      </div>
+      <div class="params-row">
+        <div class="param"><span class="label">Heat idx</span><span class="value" style="font-size:14px;">${r.heat_index_c!=null?r.heat_index_c.toFixed(1)+'°':'—'}</span></div>
+        <div class="param"><span class="label">Humidity</span><span class="value" style="font-size:14px;">${r.humidity_percent!=null?r.humidity_percent+'%':'—'}</span></div>
+        <div class="param"><span class="label">Direction</span><span class="value" style="font-size:14px;">${windText}${windDeg!==null?' ('+windDeg+'°)':''}</span></div>
+        <div class="param"><span class="label">Rain today</span><span class="value" style="font-size:14px;">${r.rain_today_mm!=null?r.rain_today_mm+' mm':'—'}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+  el('totalCount').textContent=rows.length;
+  el('alertCount').textContent=alertCount;
+  el('staleCount').textContent=staleCount;
+  el('mostRecent').textContent=mostRecent||'—';
+}
+
+async function fetchStationsData(){
+  try{
+    let rows=[];
+    try{
+      const res=await fetch(API_BASE,{cache:'no-store'});
+      if(!res.ok)throw new Error('Network '+res.status);
+      rows=await res.json();
+    }catch(err){
+      rows=[
+        {station:'Curaçao International Airport',temperature_c:29.1,heat_index_c:31.0,humidity_percent:74,wind_speed_knots:12,wind_direction_deg:140,wind_direction_text:'SE',rain_today_mm:0,last_updated:new Date().toISOString()},
+        {station:'Seru Mahuma',temperature_c:28.4,heat_index_c:29.5,humidity_percent:70,wind_speed_knots:8,wind_direction_deg:160,wind_direction_text:'SSE',rain_today_mm:0,last_updated:new Date().toISOString()},
+        {station:'Santa Maria',temperature_c:29.6,heat_index_c:31.2,humidity_percent:72,wind_speed_knots:10,wind_direction_deg:150,wind_direction_text:'SSE',rain_today_mm:0,last_updated:new Date().toISOString()},
+        {station:'Savonet',temperature_c:27.2,heat_index_c:27.8,humidity_percent:68,wind_speed_knots:6,wind_direction_deg:120,wind_direction_text:'ESE',rain_today_mm:0,last_updated:new Date().toISOString()}
+      ];
+    }
+    rows.forEach(r=>{
+      r.temperature_c=safeNum(r.temperature_c);r.heat_index_c=safeNum(r.heat_index_c);r.humidity_percent=safeNum(r.humidity_percent);
+      r.wind_speed_knots=safeNum(r.wind_speed_knots);r.wind_direction_deg=r.wind_direction_deg!=null?safeNum(r.wind_direction_deg):(r.wind_direction&&!isNaN(Number(r.wind_direction))?Number(r.wind_direction):null);
+      r.rain_today_mm=safeNum(r.rain_today_mm);if(r.last_updated_iso)r.last_updated=r.last_updated_iso;
+    });
+    currentData=rows;
+    const ts='Last fetched: '+new Date().toLocaleString();
+    el('stationsLastFetched').textContent=ts;el('mapLastFetched').textContent=ts;
+    renderStationsList(rows);addMarkersToMap(rows);
+  }catch(e){console.error('fetchStationsData error',e);}
+}
+
+document.getElementById('toggleMap').addEventListener('click',()=>{
+  const mapCard=document.getElementById('stationsMapCard');
+  const isHidden=mapCard.classList.contains('hidden');
+  if(isHidden){mapCard.classList.remove('hidden');initMap();addMarkersToMap(currentData);try{map.setView([ISLAND_CENTER.lat,ISLAND_CENTER.lon],11);setTimeout(()=>map.invalidateSize(),200);}catch(e){}}
+  else mapCard.classList.add('hidden');
+});
+el('mapSearch').addEventListener('input',()=>{
+  const q=el('mapSearch').value.toLowerCase();
+  addMarkersToMap(currentData.filter(r=>!q||(r.station&&r.station.toLowerCase().includes(q))));
+});
+
+/* ── SECTION SWITCHING ── */
+const metarSectionEl=document.getElementById('metarSection');
+const tafSectionEl=document.getElementById('tafSection');
+const synopSectionEl=document.getElementById('synopSection');
+const stationsSectionEl=document.getElementById('stationsSection');
+
+document.getElementById('switchToStations').addEventListener('click',()=>{
+  metarSectionEl?.classList.add('hidden');tafSectionEl?.classList.add('hidden');synopSectionEl?.classList.add('hidden');
+  stationsSectionEl?.classList.remove('hidden');stationsSectionEl?.setAttribute('aria-hidden','false');
+  fetchStationsData();
+});
+document.getElementById('backToMetar').addEventListener('click',()=>{
+  stationsSectionEl?.classList.add('hidden');stationsSectionEl?.setAttribute('aria-hidden','true');
+  metarSectionEl?.classList.remove('hidden');tafSectionEl?.classList.remove('hidden');synopSectionEl?.classList.remove('hidden');
+});
+
+/* ── INIT ── */
+(async function init(){
+  try{
+    buildMetarTable();buildTafTable();buildSynopTable();
+    await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops()]);
+    const anyData=STATIONS.some(icao=>metarState[icao]&&metarState[icao].lastRaw);
+    if(!anyData){
+      console.warn('No live METAR data — activating test mode.');
+      testMode=true;startTestRunner();
+      const b=document.getElementById('test-btn');if(b)b.textContent='⚗ Exit Test';
+    }
+    fetchStationsData();
+  }catch(e){
+    console.error('initialization error',e);
+    testMode=true;startTestRunner();
+    const b=document.getElementById('test-btn');if(b)b.textContent='⚗ Exit Test';
+  }
+})();
+
+window.__metarDashboard={refreshAllMetars,updateVisFromKnmi,loadAllTafs,loadAllSynops,renderMetar,renderTafRow,startTestRunner,stopTestRunner,metarState,fetchStationsData};
+})();
+</script>
+</body>
+</html>
