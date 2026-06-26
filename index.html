@@ -523,6 +523,72 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .knmi-tile.knmi-bad::before{background:linear-gradient(90deg,var(--alert),transparent 70%);}
 .knmi-tile.knmi-bad .knmi-tile-val{color:var(--alert);}
 
+/* ── TAF FORECAST CARDS ── */
+.taf-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px;padding:16px;}
+.taf-card{
+  background:rgba(5,16,36,0.82);
+  border:1px solid rgba(85,193,255,0.16);
+  border-radius:14px;overflow:hidden;position:relative;
+  box-shadow:0 6px 22px rgba(0,0,0,0.28);
+}
+.taf-card-head{
+  display:flex;align-items:center;gap:13px;padding:14px 16px;
+  background:linear-gradient(135deg,rgba(16,42,82,0.9),rgba(9,24,50,0.55));
+  border-bottom:1px solid rgba(85,193,255,0.16);
+}
+.taf-flag{
+  font-size:30px;line-height:1;flex-shrink:0;
+  animation:tafFlagGlow 3s ease-in-out infinite;
+}
+@keyframes tafFlagGlow{
+  0%,100%{filter:drop-shadow(0 0 5px rgba(85,193,255,0.65)) drop-shadow(0 0 11px rgba(85,193,255,0.4));}
+  50%{filter:drop-shadow(0 0 10px rgba(120,205,255,1)) drop-shadow(0 0 22px rgba(85,193,255,0.75));}
+}
+.taf-card-id{display:flex;flex-direction:column;gap:2px;min-width:0;}
+.taf-icao{font-family:var(--cond);font-size:23px;font-weight:800;letter-spacing:1.5px;color:var(--accent);line-height:1;}
+.taf-name{font-size:11px;color:var(--muted);letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.taf-valid{margin-left:auto;font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.7);white-space:nowrap;}
+.taf-raw-btn{
+  background:rgba(85,193,255,0.08);border:1px solid rgba(85,193,255,0.25);
+  color:var(--accent);border-radius:5px;padding:3px 10px;font-size:11px;
+  cursor:pointer;transition:background .15s;font-family:var(--mono);flex-shrink:0;
+}
+.taf-raw-btn:hover{background:rgba(85,193,255,0.2);}
+.taf-segs{padding:12px 14px;display:flex;flex-direction:column;gap:9px;}
+.taf-seg-empty{color:var(--muted);font-size:12px;padding:4px 2px;}
+.taf-seg{
+  padding:9px 11px;border-radius:9px;
+  background:rgba(85,193,255,0.045);border:1px solid rgba(85,193,255,0.09);
+  border-left:3px solid var(--seg-accent,rgba(85,193,255,0.45));
+}
+.taf-seg.type-BASE{--seg-accent:var(--accent-strong);}
+.taf-seg.type-FM{--seg-accent:#5ad1a0;}
+.taf-seg.type-BECMG{--seg-accent:#7aa7ff;}
+.taf-seg.type-TEMPO{--seg-accent:#ffb454;}
+.taf-seg.type-PROB{--seg-accent:#c08cff;}
+.taf-seg-hd{display:flex;align-items:center;gap:10px;margin-bottom:7px;}
+.taf-seg-tag{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:0.6px;color:var(--accent-strong);}
+.taf-seg-period{font-family:var(--mono);font-size:11px;color:rgba(200,225,255,0.5);}
+.taf-seg-data{display:flex;flex-wrap:wrap;gap:6px 7px;}
+.taf-chip{
+  font-family:var(--mono);font-size:12px;color:#d0e8ff;
+  background:rgba(255,255,255,0.03);padding:3px 8px;border-radius:6px;
+  border:1px solid rgba(85,193,255,0.1);white-space:nowrap;
+}
+.taf-chip b{font-size:8.5px;letter-spacing:0.6px;color:rgba(200,225,255,0.42);margin-right:5px;font-weight:700;}
+.taf-chip.chip-alert{color:#ffb454;border-color:rgba(245,158,11,0.45);background:rgba(245,158,11,0.07);}
+.taf-chip.chip-wx{color:#ff8f8f;border-color:rgba(239,68,68,0.45);background:rgba(239,68,68,0.07);}
+.taf-chip.chip-cloud{color:#ffd479;border-color:rgba(245,200,80,0.4);background:rgba(245,200,80,0.06);}
+.taf-chip-none{color:var(--muted);font-style:italic;}
+.taf-raw-box{padding:0 14px 14px;}
+.taf-raw-box.hidden{display:none;}
+.taf-raw-text{
+  display:block;font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.78);
+  white-space:pre-wrap;word-break:break-word;line-height:1.6;
+  background:rgba(0,0,0,0.28);padding:10px 12px;border-radius:8px;
+}
+@media(max-width:560px){.taf-cards{padding:10px;gap:12px;}.taf-flag{font-size:26px;}.taf-icao{font-size:20px;}}
+
 /* ── STATIONS DASHBOARD ── */
 .stations-card{
   margin-top:8px;padding:16px;border-radius:var(--radius-lg);
@@ -832,14 +898,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         </div>
       </div>
       <div class="table-card">
-        <table id="taf-table" aria-label="TAF list">
-          <thead>
-            <tr>
-              <th>ICAO</th><th>Valid (Z)</th><th>Wind</th><th>Vis</th><th>Wx</th><th>Cloud</th><th>Temp / Dew</th><th>QNH (hPa / inHg)</th>
-            </tr>
-          </thead>
-          <tbody id="taf"></tbody>
-        </table>
+        <div id="taf" class="taf-cards" aria-label="TAF list"></div>
         <div class="status-bar"><span id="taf-updated" style="color:var(--muted)">TAF last updated: --:--</span></div>
       </div>
     </div>
@@ -1762,35 +1821,67 @@ function sanitizeTextForDisplay(text){
   return keep.join('\n');
 }
 
-/* ── BUILD TAF TABLE ── */
+/* ── BUILD TAF CARDS ── */
 const TAF_ICAOS = STATIONS.slice(0,3); // TNCA, TNCB, TNCC
+const STATION_FLAGS = {TNCA:'🇦🇼',TNCB:'🇧🇶',TNCC:'🇨🇼',TNCM:'🇸🇽',SVMI:'🇻🇪',SVVA:'🇻🇪'};
 const tafDataStore={}; // icao -> last parsed TAF object, used by the METAR history/forecast panel
 
 function buildTafTable(){
   tafTbody.innerHTML='';
   TAF_ICAOS.forEach(icao=>{
-    const tr=document.createElement('tr');
-    tr.dataset.icao=icao;
-    tr.dataset.tafBase='1';
-    tr.innerHTML=`<td class="station">${icao}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
-    const rr=document.createElement('tr');
-    rr.className='taf-raw-row';
-    rr.dataset.icao=icao;
-    rr.innerHTML=`<td colspan="8"><span class="taf-raw-text"></span></td>`;
-    tafTbody.appendChild(tr);
-    tafTbody.appendChild(rr);
+    const card=document.createElement('div');
+    card.className='taf-card';
+    card.dataset.icao=icao;
+    card.innerHTML=`
+      <div class="taf-card-head">
+        <span class="taf-flag">${STATION_FLAGS[icao]||'🏳️'}</span>
+        <div class="taf-card-id">
+          <span class="taf-icao">${icao}</span>
+          <span class="taf-name"></span>
+        </div>
+        <span class="taf-valid">Valid --</span>
+        <button class="taf-raw-btn" data-icao="${icao}">Raw ▾</button>
+      </div>
+      <div class="taf-segs"><div class="taf-seg-empty">Loading forecast…</div></div>
+      <div class="taf-raw-box hidden"><span class="taf-raw-text"></span></div>`;
+    tafTbody.appendChild(card);
+  });
+  tafTbody.addEventListener('click',e=>{
+    const btn=e.target.closest('.taf-raw-btn');
+    if(!btn)return;
+    const card=tafTbody.querySelector(`.taf-card[data-icao="${btn.dataset.icao}"]`);
+    if(!card)return;
+    const box=card.querySelector('.taf-raw-box');
+    box.classList.toggle('hidden');
+    btn.textContent=box.classList.contains('hidden')?'Raw ▾':'Raw ▴';
   });
 }
 buildTafTable();
 
-/** Apply alert classes to a set of 8 tds based on parsed segment fields */
-function applyTafAlerts(tds, seg){
-  [2,3,4,5].forEach(i=>tds[i].classList.remove('alert','cloud-critical','wx-critical'));
-  if(seg.windBase!=='--'&&/G\d{2,3}KT/i.test(seg.windBase))tds[2].classList.add('alert');
-  if(!isNaN(seg.visNum)&&seg.visNum<=5000)tds[3].classList.add('alert');
-  const wxCrit=/\b(?:VCTS|VCSH|TS|TSRA)\b/i.test(seg.wx)||/\bSHRA\b/i.test(seg.wx)||/(^|\s)(?:\+|-)\s*(?:SHRA|SH|RA)/i.test(seg.wx);
-  if(wxCrit)tds[4].classList.add('alert','wx-critical');
-  if(/(?:FEW|SCT|BKN|OVC)\d{3}(?:CB|TCU)/i.test(seg.cld))tds[5].classList.add('cloud-critical');
+/* Determine which chips in a segment should be highlighted */
+function tafSegFlags(seg){
+  return {
+    windAlert: seg.windBase!=='--'&&/G\d{2,3}KT/i.test(seg.windBase),
+    visAlert:  !isNaN(seg.visNum)&&seg.visNum<=5000,
+    wxCrit:    /\b(?:VCTS|VCSH|TS|TSRA)\b/i.test(seg.wx)||/\bSHRA\b/i.test(seg.wx)||/(^|\s)(?:\+|-)\s*(?:SHRA|SH|RA)/i.test(seg.wx),
+    cldCrit:   /(?:FEW|SCT|BKN|OVC)\d{3}(?:CB|TCU)/i.test(seg.cld)
+  };
+}
+/* Build one forecast segment block (BASE or change group) */
+function tafSegHtml(tag,type,period,seg,temp){
+  const f=tafSegFlags(seg);
+  const chips=[];
+  if(seg.wind&&seg.wind!=='--') chips.push(`<span class="taf-chip${f.windAlert?' chip-alert':''}"><b>WIND</b>${seg.wind}</span>`);
+  if(seg.vis&&seg.vis!=='--')   chips.push(`<span class="taf-chip${f.visAlert?' chip-alert':''}"><b>VIS</b>${seg.vis}</span>`);
+  if(seg.wx&&seg.wx!=='--')     chips.push(`<span class="taf-chip${f.wxCrit?' chip-wx':''}"><b>WX</b>${seg.wx}</span>`);
+  if(seg.cld&&seg.cld!=='--')   chips.push(`<span class="taf-chip${f.cldCrit?' chip-cloud':''}"><b>CLD</b>${seg.cld}</span>`);
+  if(seg.qnh&&seg.qnh!=='—')    chips.push(`<span class="taf-chip"><b>QNH</b>${seg.qnh}</span>`);
+  if(temp&&temp!=='--')         chips.push(`<span class="taf-chip"><b>TEMP</b>${temp}</span>`);
+  if(!chips.length)             chips.push(`<span class="taf-chip taf-chip-none">no change groups decoded</span>`);
+  return `<div class="taf-seg type-${type}">
+    <div class="taf-seg-hd"><span class="taf-seg-tag">${tag}</span>${period?`<span class="taf-seg-period">${period}</span>`:''}</div>
+    <div class="taf-seg-data">${chips.join('')}</div>
+  </div>`;
 }
 
 function renderTafRow(icao, rawText){
@@ -1803,45 +1894,16 @@ function renderTafRow(icao, rawText){
   const openRow=document.querySelector(`tr.history-row[data-icao="${icao}"].open`);
   if(openRow)renderForecastBox(icao);
 
-  // ── BASE ROW ──
-  const tr=tafTbody.querySelector(`tr[data-taf-base][data-icao="${icao}"]`);
-  if(!tr)return;
-  const tds=tr.querySelectorAll('td');
-  tds[1].textContent=parsed.valid;
-  tds[2].textContent=parsed.base.wind;
-  tds[3].textContent=parsed.base.vis;
-  tds[4].textContent=parsed.base.wx;
-  tds[5].textContent=parsed.base.cld;
-  tds[6].textContent=parsed.td;
-  tds[7].textContent=parsed.base.qnh;
-  applyTafAlerts(tds, parsed.base);
+  const card=tafTbody.querySelector(`.taf-card[data-icao="${icao}"]`);
+  if(!card)return;
+  const nameEl=card.querySelector('.taf-name'); if(nameEl)nameEl.textContent=STATION_FULL_NAMES[icao]||'';
+  const validEl=card.querySelector('.taf-valid'); if(validEl)validEl.textContent='Valid '+parsed.valid;
 
-  // ── RAW ROW ──
-  const rr=tafTbody.querySelector(`tr.taf-raw-row[data-icao="${icao}"]`);
-  if(rr){const span=rr.querySelector('.taf-raw-text');if(span)span.textContent=parsed.rawFull;}
+  let html=tafSegHtml('BASE','BASE',parsed.valid,parsed.base,parsed.td);
+  parsed.changes.forEach(ch=>{ html+=tafSegHtml(ch.label,ch.type,ch.period,ch,null); });
+  const segs=card.querySelector('.taf-segs'); if(segs)segs.innerHTML=html;
 
-  // ── REMOVE OLD CHANGE SUB-ROWS for this icao ──
-  tafTbody.querySelectorAll(`tr.taf-change-row[data-icao="${icao}"]`).forEach(r=>r.remove());
-
-  // ── INSERT CHANGE ROWS before the raw row ──
-  const insertBefore=rr||null;
-  parsed.changes.forEach(ch=>{
-    const cr=document.createElement('tr');
-    cr.className=`taf-change-row type-${ch.type}`;
-    cr.dataset.icao=icao;
-    cr.innerHTML=`<td>${ch.label}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
-    const ctds=cr.querySelectorAll('td');
-    ctds[1].textContent=ch.period||'--';
-    ctds[2].textContent=ch.wind;
-    ctds[3].textContent=ch.vis;
-    ctds[4].textContent=ch.wx;
-    ctds[5].textContent=ch.cld;
-    ctds[6].textContent='—';
-    ctds[7].textContent=ch.qnh;
-    applyTafAlerts(ctds,ch);
-    if(insertBefore){tafTbody.insertBefore(cr,insertBefore);}
-    else{tafTbody.appendChild(cr);}
-  });
+  const rawEl=card.querySelector('.taf-raw-text'); if(rawEl)rawEl.textContent=parsed.rawFull;
 }
 
 async function loadTafRow(icao){
