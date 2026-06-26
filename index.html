@@ -489,6 +489,38 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .synop-raw-row.hidden{display:none;}
 .synop-raw-row .synop-raw{padding:10px 14px 14px;}
 
+/* ── KNMI BONAIRE ── */
+.knmi-status{font-family:var(--mono);font-size:12px;color:var(--muted);padding:12px 14px 4px;}
+.knmi-status.ok{color:var(--ok);}
+.knmi-status.err{color:var(--alert);}
+.knmi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;padding:12px 14px;}
+.knmi-station{
+  grid-column:1/-1;font-family:var(--cond);font-size:13px;font-weight:700;
+  letter-spacing:1px;color:var(--accent-strong);text-transform:uppercase;
+  padding-bottom:8px;border-bottom:1px solid rgba(85,193,255,0.12);margin-bottom:2px;
+}
+.knmi-tile{
+  background:rgba(5,16,36,0.8);border:1px solid rgba(85,193,255,0.14);
+  border-radius:9px;padding:10px 12px;position:relative;overflow:hidden;
+  transition:border-color .15s;
+}
+.knmi-tile::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--accent-strong),transparent 70%);
+}
+.knmi-tile-lbl{
+  font-size:9px;letter-spacing:1px;font-weight:700;text-transform:uppercase;
+  color:rgba(200,225,255,0.4);margin-bottom:5px;
+}
+.knmi-tile-val{font-size:19px;font-weight:700;color:#d0e8ff;line-height:1.1;}
+.knmi-tile-val small{font-size:11px;font-weight:600;color:rgba(200,225,255,0.45);margin-left:2px;}
+.knmi-tile.knmi-warn{border-color:rgba(245,158,11,0.55);}
+.knmi-tile.knmi-warn::before{background:linear-gradient(90deg,var(--warn),transparent 70%);}
+.knmi-tile.knmi-warn .knmi-tile-val{color:var(--warn);}
+.knmi-tile.knmi-bad{border-color:rgba(239,68,68,0.6);}
+.knmi-tile.knmi-bad::before{background:linear-gradient(90deg,var(--alert),transparent 70%);}
+.knmi-tile.knmi-bad .knmi-tile-val{color:var(--alert);}
+
 /* ── STATIONS DASHBOARD ── */
 .stations-card{
   margin-top:8px;padding:16px;border-radius:var(--radius-lg);
@@ -758,6 +790,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     <button class="tab-btn active" data-tab="metar" role="tab" aria-selected="true">📡 METAR</button>
     <button class="tab-btn" data-tab="taf" role="tab" aria-selected="false">📋 TAF</button>
     <button class="tab-btn" data-tab="synop" role="tab" aria-selected="false">🛰 SYNOP</button>
+    <button class="tab-btn" data-tab="knmi" role="tab" aria-selected="false">🇧🇶 KNMI</button>
     <button class="tab-btn" data-tab="stations" role="tab" aria-selected="false">⊞ Stations</button>
   </nav>
 
@@ -822,6 +855,20 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
           <div id="synop"></div>
         </div>
         <div class="status-bar"><span id="synop-updated" style="color:var(--muted)">SYNOP last updated: --:--</span></div>
+      </div>
+    </div>
+
+    <!-- KNMI Section -->
+    <div id="knmiSection" class="table-wrapper fade-in hidden">
+      <div class="section-header">
+        <div class="section-title">KNMI Bonaire Observations</div>
+        <div class="section-controls">
+          <button id="knmi-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Refresh KNMI Bonaire">↻ KNMI</button>
+        </div>
+      </div>
+      <div class="table-card">
+        <div id="knmiStatus" class="knmi-status">Loading live KNMI Bonaire observations…</div>
+        <div id="knmiGrid" class="knmi-grid"></div>
       </div>
     </div>
 
@@ -1155,6 +1202,245 @@ async function updateVisFromKnmi(){
     visValueEl.textContent='—';visValueEl.style.color='';
     visStatusEl.classList.remove('low');visStatusEl.style.background='';visStatusEl.style.boxShadow='';
     visTsEl.style.display='none';
+  }
+}
+
+/* ════════ KNMI BONAIRE TAB ════════ */
+const KNMI_URL = 'https://www.knmidc.org/weather/bonaire/?Current';
+
+/* Small DOM/persistence/fetch adapters used by the KNMI tab code. */
+function byId(id){ return document.getElementById(id); }
+function persistKnmi(url, text){
+  try{ localStorage.setItem('knmi-cache:'+url, JSON.stringify({text:text, cachedAt:Date.now()})); }catch(e){}
+}
+function readPersisted(url){
+  try{ const s=localStorage.getItem('knmi-cache:'+url); if(!s) return null; return JSON.parse(s); }catch(e){ return null; }
+}
+/* Race several CORS proxies; persist the winning body for fast first paint.
+   Returns {ok,text,stale,cachedAt}. Falls back to cache, else throws. */
+async function fetchURL(url, attempts, opts){
+  opts = opts || {};
+  const bust = Date.now();
+  const target = url + (url.indexOf('?')>=0 ? '&' : '?') + '_cb=' + bust;
+  const TIMEOUT = 8000;
+  const tryText = async (u)=>{ const r=await fetchWithTimeout(u,TIMEOUT); if(!r||!r.ok) throw new Error('bad response'); const t=await r.text(); if(!t||!t.trim()) throw new Error('empty body'); return t.trim(); };
+  const tryJson = async (u)=>{ const r=await fetchWithTimeout(u,TIMEOUT); if(!r||!r.ok) throw new Error('bad response'); const j=await r.json(); if(!j||typeof j.contents!=='string'||!j.contents.trim()) throw new Error('empty contents'); return j.contents.trim(); };
+  const tries = [
+    tryText('https://api.allorigins.win/raw?url='+encodeURIComponent(target)),
+    tryJson('https://api.allorigins.win/get?url='+encodeURIComponent(target)),
+    tryText('https://corsproxy.io/?url='+encodeURIComponent(target)),
+    tryText(target)
+  ];
+  try{
+    const text = await firstResolved(tries);
+    persistKnmi(url, text);
+    return { ok:true, text:text, stale:false };
+  }catch(e){
+    const cached = readPersisted(url);
+    if(cached && cached.text) return { ok:true, text:cached.text, stale:true, cachedAt:cached.cachedAt };
+    throw e;
+  }
+}
+
+/* ── Parse the KNMI Bonaire page HTML into a label→{value,extra} map ── */
+function parseKnmiBonaire(raw){
+  if(!raw) return null;
+  // Proxies may HTML-entity-encode the markup — decode first.
+  var html = String(raw)
+    .replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&amp;/g,'&');
+  var out = {};
+  // Observation time
+  var tm = html.match(/Bonaire<br\s*\/?>([^<]+UTC)/i);
+  if(tm) out.time = tm[1].trim();
+
+  // PRIMARY: parse the HTML table rows.
+  var rowRe = /<td[^>]*>\s*<smalli>\s*([^<]+?)\s*<\/td>\s*<th[^>]*>\s*<center>\s*([^<]+?)\s*(?:<smalli>\s*([^<]*?)\s*(?:<\/smalli>)?)?\s*<\/th>/gi;
+  var m;
+  while((m = rowRe.exec(html)) !== null){
+    var label = m[1].replace(/&deg;/g,'°').replace(/\s+/g,' ').trim();
+    var value = (m[2]||'').replace(/&nbsp;/g,' ').trim();
+    var extra = (m[3]||'').replace(/[()%]/g,'').trim();
+    out[label] = {value:value, extra:extra};
+  }
+  if(Object.keys(out).filter(function(k){return k!=='time';}).length >= 3) return out;
+
+  // FALLBACK: tag-stripped text (e.g. Jina markdown).
+  var text = html.replace(/<[^>]+>/g,' ').replace(/&deg;/g,'°').replace(/&nbsp;/g,' ').replace(/\s+/g,' ');
+  var pairs = [
+    ['Winddirection','Winddirection (Sector/deg)', /Winddirection[^A-Za-z]*\(?Sector\/deg\)?\s*([NESW]{1,3})\s*\(?\s*(\d{1,3})/i, true],
+    ['Windspeed','Windspeed (m/s)', /Windspeed\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Gusts','Gusts (m/s)', /Gusts\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Cloud','Cloud cover (Octa / %)', /Cloud cover\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Radiation','Radiation (W/m2)', /Radiation\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Precipitation','Precipitation (mm/10 min)', /Precipitation\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Relative','Relative humidity (%)', /Relative humidity\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Temperature','Temperature (°C)', /Temperature\s*(?:\([^)]*\))?[^\d(-]{0,12}(-?[\d.]+)/i],
+    ['Dewpoint','Dewpoint temperature (°C)', /Dewpoint(?:\s+temperature)?\s*(?:\([^)]*\))?[^\d(-]{0,12}(-?[\d.]+)/i],
+    ['Visibility','Visibility (m)', /Visibility\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i],
+    ['Pressure','Pressure (hPa)', /Pressure\s*(?:\([^)]*\))?[^\d(-]{0,12}([\d.]+)/i]
+  ];
+  pairs.forEach(function(p){
+    var mm = text.match(p[2]);
+    if(mm){
+      if(p[3]) out[p[1]+' (Sector/deg)'] = {value:mm[1], extra:mm[2]||''};
+      else out[p[1]] = {value:mm[1], extra:''};
+    }
+  });
+  if(!out.time){
+    var tt = text.match(/Bonaire\s+([A-Za-z]{3},?\s+\d{1,2}\s+\w+\s+\d{4}\s+[\d:]+\s*UTC)/);
+    if(tt) out.time = tt[1].trim();
+  }
+  return out;
+}
+
+/* Convert parsed page fields → normalized numbers → window.__knmiData */
+function knmiToNormalized(parsed, ts){
+  if(!parsed) return null;
+  function find(sub){ for(var k in parsed){ if(k.indexOf(sub)>=0) return parsed[k]; } return null; }
+  function num(rec){ if(!rec||rec.value==null) return null; var n=parseFloat(rec.value); return isFinite(n)?n:null; }
+  var windMs = num(find('Windspeed'));
+  var gustMs = num(find('Gusts'));
+  var visM   = num(find('Visibility'));
+  var wd     = find('Winddirection');
+  var n = {
+    temp_c:     num(find('Temperature (')),
+    dew_c:      num(find('Dewpoint')),
+    rh:         num(find('Relative humidity')),
+    wind_kt:    windMs!=null ? Math.round(windMs*1.94384) : null,
+    gust_kt:    gustMs!=null ? Math.round(gustMs*1.94384) : null,
+    wind_dir:   wd && wd.extra ? parseFloat(wd.extra) : null,
+    cloud_octa: num(find('Cloud cover')),
+    radiation:  num(find('Radiation')),
+    precip_10m: num(find('Precipitation')),
+    vis_m:      visM,
+    slp:        num(find('Pressure')),
+    time:       parsed.time || null,
+    ts:         ts || Date.now()
+  };
+  window.__knmiData = n;
+  window.__knmiLoadedAt = n.ts;
+  return n;
+}
+
+/* Build the tile grid HTML for the KNMI tab */
+function buildKnmiGridHtml(parsed){
+  var FIELDS = [
+    {match:'Temperature (',     lbl:'Temperature', unit:'°C'},
+    {match:'Dewpoint',          lbl:'Dew Point',   unit:'°C'},
+    {match:'Relative humidity', lbl:'Humidity',    unit:'%'},
+    {match:'Winddirection',     lbl:'Wind Dir',    unit:'', dirExtra:true},
+    {match:'Windspeed',         lbl:'Wind Speed',  unit:'kt', msToKt:true},
+    {match:'Gusts',             lbl:'Gusts',       unit:'kt', msToKt:true},
+    {match:'Cloud cover',       lbl:'Cloud Cover', unit:'octa'},
+    {match:'Radiation',         lbl:'Solar Rad',   unit:'W/m²'},
+    {match:'Visibility',        lbl:'Visibility',  unit:'km', mToKm:true},
+    {match:'Precipitation',     lbl:'Precip',      unit:'mm/10m'},
+    {match:'Pressure',          lbl:'Pressure',    unit:'hPa'}
+  ];
+  function findKey(sub){ for(var k in parsed){ if(k.indexOf(sub)>=0) return k; } return null; }
+  var html = '<div class="knmi-station">🇧🇶 Bonaire (KNMI)' +
+    (parsed.time ? ' · ' + parsed.time : '') + '</div>';
+  var shown = 0;
+  FIELDS.forEach(function(f){
+    var key = findKey(f.match);
+    if(!key) return;
+    var rec = parsed[key];
+    if(!rec || rec.value===undefined || rec.value==='') return;
+    var disp = rec.value, unit = f.unit;
+    var num = parseFloat(rec.value);
+    if(f.msToKt && isFinite(num)) disp = Math.round(num * 1.94384);
+    else if(f.mToKm && isFinite(num)) disp = (num/1000).toFixed(2);
+    if(f.dirExtra){ disp = rec.value + (rec.extra ? ' ' + rec.extra + '°' : ''); unit = ''; }
+    // Color coding
+    var dnum = parseFloat(disp);
+    var colorClass = '';
+    function band(v, warnLo, badLo, warnHi, badHi){
+      if(!isFinite(v)) return '';
+      if((badLo!=null && v<=badLo)||(badHi!=null && v>=badHi)) return 'knmi-bad';
+      if((warnLo!=null && v<=warnLo)||(warnHi!=null && v>=warnHi)) return 'knmi-warn';
+      return '';
+    }
+    switch(f.lbl){
+      case 'Temperature': colorClass = band(dnum, 22, 18, 32, 35); break;
+      case 'Dew Point':   colorClass = band(dnum, null, null, 24, 26); break;
+      case 'Humidity':    colorClass = band(dnum, 35, 25, 85, 92); break;
+      case 'Wind Speed':  colorClass = band(dnum, null, null, 22, 33); break;
+      case 'Gusts':       colorClass = band(dnum, null, null, 28, 40); break;
+      case 'Pressure':    colorClass = band(dnum, 1009, 1005, 1018, 1021); break;
+      case 'Precip':      colorClass = band(dnum, null, null, 1, 5); break;
+      case 'Visibility':  colorClass = band(dnum, 5, 2, null, null); break;
+      case 'Cloud Cover': colorClass = band(dnum, null, null, 7, null); break;
+    }
+    html += '<div class="knmi-tile ' + colorClass + '"><div class="knmi-tile-lbl">' + f.lbl + '</div>' +
+            '<div class="knmi-tile-val">' + disp + (unit?' <small>'+unit+'</small>':'') + '</div></div>';
+    shown++;
+  });
+  return shown ? html : null;
+}
+
+/* Propagate fresh KNMI numbers into other views */
+function propagateKnmi(){
+  if(typeof renderMonitor === 'function'){
+    try { renderMonitor(__monLastData || {}); } catch(e){}
+  }
+  try{ if(typeof condMap!=='undefined' && condMap && __condMapReady) renderCondMap(); }catch(e){}
+  try{ CSTRIP_ICAOS.forEach(function(ic){ if(mState[ic]&&mState[ic].lastRaw) updateCstrip(ic, parseMetar(mState[ic].lastRaw)); }); }catch(e){}
+}
+
+/* Main loader — fetches via proxy, shows cached data first for fast paint */
+async function loadKnmiData(force){
+  var statusEl = byId('knmiStatus'), gridEl = byId('knmiGrid');
+  if(!statusEl || !gridEl) return;
+  statusEl.className = 'knmi-status';
+  statusEl.textContent = 'Loading live KNMI Bonaire observations…';
+
+  // Fast first paint: show last persisted page immediately while fetch runs.
+  if(!force && !window.__knmiData){
+    try {
+      var stale = readPersisted(KNMI_URL);
+      if(stale && stale.text){
+        var sParsed = parseKnmiBonaire(stale.text);
+        var sFields = sParsed ? Object.keys(sParsed).filter(function(k){return k!=='time';}).length : 0;
+        if(sParsed && sFields >= 3){
+          knmiToNormalized(sParsed, stale.cachedAt);
+          propagateKnmi();
+          var sHtml = buildKnmiGridHtml(sParsed);
+          if(sHtml) gridEl.innerHTML = sHtml;
+          statusEl.textContent = 'Showing cached data · refreshing…';
+        }
+      }
+    } catch(e){}
+  }
+
+  try {
+    var resp = await fetchURL(KNMI_URL, force ? 2 : 1, force ? {forceFresh:true} : {});
+    if(!resp || !resp.text) throw new Error('no response from page (proxy may be down)');
+    var parsed = parseKnmiBonaire(resp.text);
+    var nFields = parsed ? Object.keys(parsed).filter(function(k){return k!=='time';}).length : 0;
+    if(!parsed || nFields === 0) throw new Error('page loaded but no data rows found');
+
+    knmiToNormalized(parsed, resp.stale ? resp.cachedAt : null);
+    propagateKnmi();
+
+    var html = buildKnmiGridHtml(parsed);
+    if(!html) throw new Error('no fields parsed (page format may have changed)');
+    gridEl.innerHTML = html;
+    statusEl.className = 'knmi-status ok';
+    statusEl.textContent = resp.stale
+      ? '⚠ Cached KNMI data (offline) · ' + new Date(resp.cachedAt).toLocaleTimeString()
+      : '✓ Live from KNMI Bonaire · ' + new Date().toLocaleTimeString();
+  } catch(err){
+    var msg = String(err.message||err);
+    if(window.__knmiData){
+      statusEl.className = 'knmi-status';
+      statusEl.textContent = '⚠ Refresh failed · showing cached data (' + msg + ')';
+      return;
+    }
+    statusEl.className = 'knmi-status err';
+    statusEl.textContent = '⚠ Could not load KNMI Bonaire page. ' +
+      (/fetch|network|CORS/i.test(msg) ? 'The page may be blocking cross-origin access. ' : '') + '(' + msg + ')';
+    gridEl.innerHTML = '';
   }
 }
 
@@ -2113,6 +2399,7 @@ document.getElementById('metar-refresh-btn')?.addEventListener('click',()=>refre
 document.getElementById('refresh-btn')?.addEventListener('click',()=>{updateVisFromKnmi();refreshAllMetars();});
 document.getElementById('taf-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('taf-refresh-btn');btn.disabled=true;try{await loadAllTafs();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('synop-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('synop-refresh-btn');btn.disabled=true;try{await loadAllSynops();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
+document.getElementById('knmi-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('knmi-refresh-btn');btn.disabled=true;try{await loadKnmiData(true);}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('vis-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('vis-refresh-btn');btn.disabled=true;try{await updateVisFromKnmi();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('mute-btn')?.addEventListener('click',()=>{const b=document.getElementById('mute-btn');mute=!mute;b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';});
 document.getElementById('notify-btn')?.addEventListener('click',toggleNotifications);
@@ -2404,11 +2691,12 @@ el('mapSearch').addEventListener('input',()=>{
 const metarSectionEl=document.getElementById('metarSection');
 const tafSectionEl=document.getElementById('tafSection');
 const synopSectionEl=document.getElementById('synopSection');
+const knmiSectionEl=document.getElementById('knmiSection');
 const stationsSectionEl=document.getElementById('stationsSection');
 const contentWrapperEl=document.querySelector('.content-wrapper');
 
 function switchTab(name){
-  [metarSectionEl,tafSectionEl,synopSectionEl].forEach(s=>s?.classList.add('hidden'));
+  [metarSectionEl,tafSectionEl,synopSectionEl,knmiSectionEl].forEach(s=>s?.classList.add('hidden'));
   contentWrapperEl?.classList.remove('hidden');
   stationsSectionEl?.classList.add('hidden');
   stationsSectionEl?.setAttribute('aria-hidden','true');
@@ -2420,6 +2708,7 @@ function switchTab(name){
   if(name==='metar'){metarSectionEl?.classList.remove('hidden');}
   else if(name==='taf'){tafSectionEl?.classList.remove('hidden');}
   else if(name==='synop'){synopSectionEl?.classList.remove('hidden');}
+  else if(name==='knmi'){knmiSectionEl?.classList.remove('hidden');loadKnmiData();}
   else if(name==='stations'){
     contentWrapperEl?.classList.add('hidden');
     stationsSectionEl?.classList.remove('hidden');
