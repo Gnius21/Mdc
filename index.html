@@ -461,8 +461,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   padding:7px 14px;font-size:13px;
   border-bottom:1px solid rgba(85,193,255,0.05);
 }
-.synop-obs-empty{width:14px;padding:0!important;border:none!important;}
-.synop-stn{font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.5);}
+.synop-stn{font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.5);padding-left:18px!important;}
 .synop-obs-time{font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.45);}
 .synop-raw-row.hidden{display:none;}
 .synop-raw-row td{padding:0;}
@@ -799,8 +798,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       <div class="table-card">
         <table id="synop-table" aria-label="SYNOP list">
           <thead><tr>
-            <th style="text-align:left;padding-left:18px;width:140px;">Source</th>
-            <th style="text-align:left;">Station</th>
+            <th style="text-align:left;padding-left:18px;">Station</th>
             <th style="text-align:left;">Time (Z)</th>
             <th style="text-align:left;">Wind</th>
             <th style="text-align:left;">Vis</th>
@@ -1790,73 +1788,113 @@ function decodeSynopCloudCover(n){
   if(n===9) return 'OBS';
   return null;
 }
+/* Parse positional iRiXhVV + Nddff then optional groups 1sTTT..4PPPP.
+   Stops at section boundaries 333/444/555. */
+function parseSynopMetGroups(tok,ti,windInd){
+  const obj={};
+  obj.windUnit=(windInd===1||windInd===4)?'m/s':'kt';
+  // iRiXhVV
+  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
+    const g=tok[ti++];
+    const h=g[2];
+    obj.cloudHtCode=(h!=='/')?parseInt(h,10):null;
+    obj.cloudHt=decodeSynopCloudHt(obj.cloudHtCode);
+    const vv=g.slice(3);
+    obj.visCode=(vv!=='//') ? vv : null;
+    obj.vis=obj.visCode!==null?decodeSynopVis(obj.visCode):null;
+  }
+  // Nddff
+  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
+    const g=tok[ti++];
+    const N=g[0],dd=g.slice(1,3),ff=g.slice(3);
+    obj.cloudCoverN=(N!=='/')?parseInt(N,10):null;
+    obj.cloudCover=decodeSynopCloudCover(obj.cloudCoverN);
+    obj.windDirVrb=(dd==='99');
+    // VRB → dir null; calm (dd=00 ff=00) → windCalm flag
+    obj.windDir=(!obj.windDirVrb&&dd!=='//') ? parseInt(dd,10)*10 : null;
+    obj.windSpd=(ff!=='//') ? parseInt(ff,10) : null;
+    obj.windCalm=(obj.windDir===0&&obj.windSpd===0);
+    // 00fff wind extension
+    if(ti<tok.length&&/^00\d{3}$/.test(tok[ti])) obj.windSpd=parseInt(tok[ti++].slice(2),10);
+  }
+  // Optional groups; stop at section 333/444/555
+  while(ti<tok.length){
+    const g=tok[ti++];
+    if(g==='333'||g==='444'||g==='555') break;
+    if(/^1[01]\d{3}$/.test(g)){
+      obj.tempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+    } else if(/^2[01]\d{3}$/.test(g)){
+      obj.dewC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+    } else if(/^3\d{4}$/.test(g)){
+      const p=parseInt(g.slice(1),10);
+      obj.staPress=p<5000?(p+10000)/10:p/10;
+    } else if(/^4\d{4}$/.test(g)){
+      const p=parseInt(g.slice(1),10);
+      obj.slp=p<5000?(p+10000)/10:p/10;
+    }
+  }
+  return obj;
+}
 function parseSynop(rawText){
   if(!rawText) return{timeStr:null,stations:[]};
   const clean=rawText.replace(/\r/g,'');
+
+  // ── AAXX (FM 12 land station) ──
   const aaxxM=clean.match(/\bAAXX\s+(\d\d)(\d\d)(\d)\b/);
-  const day=aaxxM?aaxxM[1]:null;
-  const hour=aaxxM?aaxxM[2]:null;
-  const windInd=aaxxM?parseInt(aaxxM[3],10):null;
-  const timeStr=(day&&hour)?`${day}/${hour}00Z`:null;
-  const section=aaxxM?clean.slice(aaxxM.index+aaxxM[0].length):clean;
-  const recs=section.split('=')
-    .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
-    .filter(r=>/^\d{5}\b/.test(r));
-  const stations=[];
-  for(const rec of recs){
-    const tok=rec.trim().split(/\s+/);
-    const obj={raw:rec};
-    let ti=0;
-    if(!/^\d{5}$/.test(tok[ti])) continue;
-    obj.station=tok[ti++];
-    // iRiXhVV
-    if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
-      const g=tok[ti++];
-      const h=g[2];
-      obj.cloudHtCode=(h!=='/')?parseInt(h,10):null;
-      obj.cloudHt=decodeSynopCloudHt(obj.cloudHtCode);
-      const vvStr=g.slice(3);
-      obj.visCode=(vvStr!=='//') ? vvStr : null;
-      obj.vis=obj.visCode!==null?decodeSynopVis(obj.visCode):null;
-    }
-    // Nddff
-    if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
-      const g=tok[ti++];
-      const N=g[0], dd=g.slice(1,3), ff=g.slice(3);
-      obj.cloudCoverN=(N!=='/')?parseInt(N,10):null;
-      obj.cloudCover=decodeSynopCloudCover(obj.cloudCoverN);
-      obj.windDirVrb=(dd==='99');
-      obj.windDir=(dd!=='//') ? parseInt(dd,10)*10 : null;
-      obj.windSpd=(ff!=='//') ? parseInt(ff,10) : null;
-      // wind speed extension 00fff
-      if(ti<tok.length&&/^00\d{3}$/.test(tok[ti])) obj.windSpd=parseInt(tok[ti++].slice(2),10);
-      obj.windUnit=(windInd===1||windInd===4)?'m/s':'kt';
-    }
-    // Optional groups by first digit
-    while(ti<tok.length){
-      const g=tok[ti++];
-      if(/^1[01]\d{3}$/.test(g)){
-        obj.tempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
-      } else if(/^2[01]\d{3}$/.test(g)){
-        obj.dewC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
-      } else if(/^3\d{4}$/.test(g)){
-        const p=parseInt(g.slice(1),10);
-        obj.staPress=p<5000?(p+10000)/10:p/10;
-      } else if(/^4\d{4}$/.test(g)){
-        const p=parseInt(g.slice(1),10);
-        obj.slp=p<5000?(p+10000)/10:p/10;
-      }
-    }
-    stations.push(obj);
+  if(aaxxM){
+    const day=aaxxM[1],hour=aaxxM[2],windInd=parseInt(aaxxM[3],10);
+    const timeStr=`${day}/${hour}00Z`;
+    const section=clean.slice(aaxxM.index+aaxxM[0].length);
+    const recs=section.split('=')
+      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
+      .filter(r=>/^\d{5}\b/.test(r));
+    const stations=recs.map(rec=>{
+      const tok=rec.trim().split(/\s+/);
+      if(!/^\d{5}$/.test(tok[0])) return null;
+      return Object.assign({station:tok[0],raw:rec,timeStr},parseSynopMetGroups(tok,1,windInd));
+    }).filter(Boolean);
+    return{timeStr,stations};
   }
-  return{timeStr,day,hour,windInd,stations};
+
+  // ── BBXX (FM 13 ship / mobile) ──
+  const bbxxM=clean.match(/\bBBXX\b/);
+  if(bbxxM){
+    const section=clean.slice(bbxxM.index+bbxxM[0].length);
+    const recs=section.split('=')
+      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
+      .filter(r=>r.length>4&&!/^(NNNN|NIL)$/.test(r.trim()));
+    const stations=[];
+    for(const rec of recs){
+      const tok=rec.trim().split(/\s+/);
+      if(tok.length<3) continue;
+      let ti=0;
+      const callSign=tok[ti++];
+      if(!callSign||/^\d{5}$/.test(callSign)){ti=0;} // handle bulletins without call sign
+      let windInd=1,staTimeStr=null;
+      // YYGGI
+      if(ti<tok.length&&/^\d{5}$/.test(tok[ti])){
+        const yg=tok[ti++];
+        windInd=parseInt(yg[4],10);
+        staTimeStr=`${yg.slice(0,2)}/${yg.slice(2,4)}00Z`;
+      }
+      // Skip 99LaLaLa and QcLoLoLoLo
+      if(ti<tok.length&&/^99\d{3}$/.test(tok[ti])) ti++;
+      if(ti<tok.length&&/^[1357]\d{4}$/.test(tok[ti])) ti++;
+      if(ti>=tok.length) continue;
+      const obj=Object.assign({station:callSign,raw:rec,timeStr:staTimeStr},parseSynopMetGroups(tok,ti,windInd));
+      stations.push(obj);
+    }
+    const timeStr=stations[0]?.timeStr||null;
+    return{timeStr,stations};
+  }
+
+  return{timeStr:null,stations:[]};
 }
 
 function renderSynopRow(index,rawText){
   const bltRow=synopTbody.querySelector(`.synop-blt-row[data-idx="${index}"]`);
   const rawRow=synopTbody.querySelector(`.synop-raw-row[data-idx="${index}"]`);
   if(!bltRow||!rawRow) return;
-  // Clear old obs rows for this bulletin
   synopTbody.querySelectorAll(`.synop-obs-row[data-blt="${index}"]`).forEach(r=>r.remove());
   rawRow.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(rawText);
   const parsed=parseSynop(rawText);
@@ -1866,7 +1904,7 @@ function renderSynopRow(index,rawText){
   if(parsed.stations.length===0){
     const tr=document.createElement('tr');
     tr.className='synop-obs-row'; tr.dataset.blt=String(index);
-    tr.innerHTML=`<td class="synop-obs-empty"></td><td colspan="7" style="color:var(--muted);font-size:12px;padding:8px 14px;">No decoded observations</td>`;
+    tr.innerHTML=`<td colspan="7" style="color:var(--muted);font-size:12px;padding:8px 18px;">No decoded observations — click Raw ▾ to see bulletin</td>`;
     obsToInsert.push(tr);
   } else {
     for(const sta of parsed.stations){
@@ -1875,32 +1913,30 @@ function renderSynopRow(index,rawText){
       // Wind
       let windStr='—';
       if(sta.windSpd!==null&&sta.windSpd!==undefined){
-        const dirStr=sta.windDirVrb?'VRB':(sta.windDir!==null?`${String(sta.windDir).padStart(3,'0')}°`:'///');
-        windStr=`${dirStr} ${sta.windSpd}${sta.windUnit}`;
+        if(sta.windCalm){
+          windStr='CALM';
+        } else {
+          const dir=sta.windDirVrb?'VRB':(sta.windDir!==null?`${String(sta.windDir).padStart(3,'0')}°`:'///');
+          windStr=`${dir} ${sta.windSpd}${sta.windUnit}`;
+        }
       }
-      // Vis
       const visStr=sta.vis||'—';
       const visLow=synopVisIsLow(sta.vis);
-      // Cloud
       let cloudStr='—';
       if(sta.cloudCover){cloudStr=sta.cloudCover;if(sta.cloudHt)cloudStr+=` ${sta.cloudHt}`;}
-      // Temp/Dew
       let tempStr='—';
       if(sta.tempC!==undefined){
         tempStr=`${sta.tempC.toFixed(1)}°`;
         if(sta.dewC!==undefined) tempStr+=` / ${sta.dewC.toFixed(1)}°`;
       }
-      // SLP
       const slpStr=(sta.slp!==undefined)?sta.slp.toFixed(1):'—';
-      // Colors
       const tCol=(sta.tempC!==undefined)?tempColorCode(sta.tempC):'#d0e8ff';
-      const spdKt=(sta.windSpd!==null&&sta.windSpd!==undefined)?(sta.windUnit==='m/s'?sta.windSpd*1.944:sta.windSpd):null;
+      const spdKt=sta.windCalm?0:(sta.windSpd!==null&&sta.windSpd!==undefined)?(sta.windUnit==='m/s'?sta.windSpd*1.944:sta.windSpd):null;
       const wCol=windSpeedColor(spdKt);
       const visCol=visLow?'#ff8080':'inherit';
       tr.innerHTML=`
-        <td class="synop-obs-empty"></td>
         <td class="synop-stn">${sta.station}</td>
-        <td class="synop-obs-time">${parsed.timeStr||'—'}</td>
+        <td class="synop-obs-time">${sta.timeStr||parsed.timeStr||'—'}</td>
         <td class="synop-obs-wind" style="color:${wCol}">${windStr}</td>
         <td class="synop-obs-vis" style="color:${visCol}">${visStr}</td>
         <td class="synop-obs-cloud">${cloudStr}</td>
@@ -1918,11 +1954,11 @@ function buildSynopTable(){
   names.forEach((name,i)=>{
     const hdr=document.createElement('tr');
     hdr.className='synop-blt-row';hdr.dataset.idx=String(i);
-    hdr.innerHTML=`<td colspan="8" class="synop-blt-cell"><span class="station">${name}</span><span class="synop-blt-time"></span><button class="synop-raw-btn" data-idx="${i}">Raw ▾</button></td>`;
+    hdr.innerHTML=`<td colspan="7" class="synop-blt-cell"><span class="station">${name}</span><span class="synop-blt-time"></span><button class="synop-raw-btn" data-idx="${i}">Raw ▾</button></td>`;
     synopTbody.appendChild(hdr);
     const rawRow=document.createElement('tr');
     rawRow.className='synop-raw-row hidden';rawRow.dataset.idx=String(i);
-    rawRow.innerHTML=`<td colspan="8"><div class="synop-raw"></div></td>`;
+    rawRow.innerHTML=`<td colspan="7"><div class="synop-raw"></div></td>`;
     synopTbody.appendChild(rawRow);
   });
   synopTbody.addEventListener('click',e=>{
