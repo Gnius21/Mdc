@@ -451,12 +451,12 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   cursor:pointer;transition:background .15s;font-family:var(--mono);
 }
 .synop-raw-btn:hover{background:rgba(85,193,255,0.2);}
-.synop-cards-grid{display:flex;flex-wrap:wrap;gap:12px;padding:12px 14px;}
+.synop-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;padding:12px 14px;}
 .synop-card{
   background:rgba(5,16,36,0.8);
   border:1px solid rgba(85,193,255,0.14);
   border-radius:10px;padding:12px 14px;
-  flex:1 1 240px;max-width:320px;min-width:210px;
+  min-width:0;
   position:relative;overflow:hidden;
 }
 .synop-card::before{
