@@ -1792,7 +1792,8 @@ function decodeSynopCloudCover(n){
    Stops at section boundaries 333/444/555. */
 function parseSynopMetGroups(tok,ti,windInd){
   const obj={};
-  obj.windUnit=(windInd===1||windInd===4)?'m/s':'kt';
+  const isMps=(windInd===1||windInd===4);
+  obj.windUnit='kt';
   // iRiXhVV
   if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
     const g=tok[ti++];
@@ -1816,6 +1817,8 @@ function parseSynopMetGroups(tok,ti,windInd){
     obj.windCalm=(obj.windDir===0&&obj.windSpd===0);
     // 00fff wind extension
     if(ti<tok.length&&/^00\d{3}$/.test(tok[ti])) obj.windSpd=parseInt(tok[ti++].slice(2),10);
+    // Convert m/s → kt (round to nearest knot)
+    if(isMps&&obj.windSpd!==null) obj.windSpd=Math.round(obj.windSpd*1.944);
   }
   // Optional groups; stop at section 333/444/555
   while(ti<tok.length){
@@ -1931,7 +1934,7 @@ function renderSynopRow(index,rawText){
       }
       const slpStr=(sta.slp!==undefined)?sta.slp.toFixed(1):'—';
       const tCol=(sta.tempC!==undefined)?tempColorCode(sta.tempC):'#d0e8ff';
-      const spdKt=sta.windCalm?0:(sta.windSpd!==null&&sta.windSpd!==undefined)?(sta.windUnit==='m/s'?sta.windSpd*1.944:sta.windSpd):null;
+      const spdKt=sta.windCalm?0:(sta.windSpd!==null&&sta.windSpd!==undefined)?sta.windSpd:null;
       const wCol=windSpeedColor(spdKt);
       const visCol=visLow?'#ff8080':'inherit';
       tr.innerHTML=`
