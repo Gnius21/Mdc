@@ -431,14 +431,63 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 :root.night tr.taf-change-row.type-PROB  td:first-child{color:#9370db;}
 :root.night tr.taf-change-row.type-FM    td:first-child{color:#cc8800;}
 
-/* SYNOP table */
-#synop-table{font-size:15px;}
-#synop-table th{font-size:10px;padding:9px 14px;}
-#synop-table td{font-size:13px;padding:12px 14px;color:#ffffff;}
+/* SYNOP tiles */
 .synop-raw{
-  font-family:var(--mono);font-size:13px;color:rgba(200,225,255,0.9);
+  font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.8);
   white-space:pre-wrap;word-break:break-word;line-height:1.65;letter-spacing:0.3px;
 }
+.synop-blt-section{margin-bottom:4px;}
+.synop-blt-header{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 14px;
+  background:rgba(14,38,76,0.65);
+  border-top:2px solid rgba(85,193,255,0.2);
+}
+.synop-blt-header .station{font-size:12px;font-weight:700;color:var(--accent-strong);letter-spacing:0.6px;}
+.synop-blt-time{font-size:11px;color:rgba(200,225,255,0.5);font-family:var(--mono);}
+.synop-raw-btn{
+  margin-left:auto;background:rgba(85,193,255,0.08);border:1px solid rgba(85,193,255,0.25);
+  color:var(--accent);border-radius:4px;padding:2px 9px;font-size:11px;
+  cursor:pointer;transition:background .15s;font-family:var(--mono);
+}
+.synop-raw-btn:hover{background:rgba(85,193,255,0.2);}
+.synop-cards-grid{display:flex;flex-wrap:wrap;gap:12px;padding:12px 14px;}
+.synop-card{
+  background:rgba(5,16,36,0.8);
+  border:1px solid rgba(85,193,255,0.14);
+  border-radius:10px;padding:12px 14px;
+  flex:1 1 240px;max-width:320px;min-width:210px;
+  position:relative;overflow:hidden;
+}
+.synop-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--card-accent,var(--accent-strong)),transparent 70%);
+}
+.synop-card-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;padding-bottom:7px;
+  border-bottom:1px solid rgba(85,193,255,0.1);
+}
+.synop-card-id{font-family:var(--mono);font-size:13px;font-weight:700;color:#d0e8ff;}
+.synop-card-time{font-family:var(--mono);font-size:10px;color:rgba(200,225,255,0.38);}
+.synop-card-wind-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px solid rgba(85,193,255,0.08);
+}
+.synop-card-wind-row svg.wind-rose{width:52px;height:52px;flex-shrink:0;}
+.synop-metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.synop-m{
+  background:rgba(85,193,255,0.045);border:1px solid rgba(85,193,255,0.08);
+  border-radius:6px;padding:5px 7px;
+}
+.synop-m-lbl{
+  font-size:8px;letter-spacing:0.9px;font-weight:700;
+  color:rgba(200,225,255,0.32);margin-bottom:3px;text-transform:uppercase;
+}
+.synop-m-val{font-size:12px;font-weight:600;color:#d0e8ff;white-space:nowrap;overflow:hidden;}
+.synop-raw-row{border-top:1px solid rgba(85,193,255,0.08);}
+.synop-raw-row.hidden{display:none;}
+.synop-raw-row .synop-raw{padding:10px 14px 14px;}
 
 /* ── STATIONS DASHBOARD ── */
 .stations-card{
@@ -570,7 +619,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 }
 .station-card::before{
   content:'';position:absolute;top:0;left:0;right:0;height:2px;
-  background:linear-gradient(90deg,var(--accent-strong),var(--accent),transparent);
+  background:linear-gradient(90deg,var(--card-accent,var(--accent-strong)),var(--card-accent,var(--accent)),transparent);
 }
 .station-card:hover{
   border-color:rgba(85,193,255,0.3);
@@ -635,7 +684,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   td{font-size:13px;padding:10px 10px;}
   td.station{font-size:17px;}
   .clock-time{font-size:22px;}
-  #synop-table td{font-size:12px;}
+  #synop-table{font-size:12px;}
   #taf-table td{font-size:13px;padding:10px 10px;}
   #taf-table td.station{font-size:17px;}
 }
@@ -769,10 +818,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         </div>
       </div>
       <div class="table-card">
-        <table id="synop-table" aria-label="SYNOP list">
-          <thead><tr><th style="text-align:left;padding-left:18px;">Source</th><th style="text-align:left;">Raw SYNOP</th></tr></thead>
-          <tbody id="synop"></tbody>
-        </table>
+        <div id="synop-table">
+          <div id="synop"></div>
+        </div>
         <div class="status-bar"><span id="synop-updated" style="color:var(--muted)">SYNOP last updated: --:--</span></div>
       </div>
     </div>
@@ -1709,14 +1757,338 @@ function toggleHistoryPanel(icao){
 
 
 /* ── SYNOP ── */
+function decodeSynopVis(vv){
+  if(vv===null||vv===undefined||vv==='//') return null;
+  const v=parseInt(vv,10);
+  if(isNaN(v)) return null;
+  if(v===0) return '<100m';
+  if(v<=50) return v*100<1000?`${v*100}m`:`${(v/10).toFixed(1)}km`;
+  const km51=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,30,35,40,45,50,60,70,80,90];
+  if(v>=51&&v<=79) return `${km51[v-51]}km`;
+  if(v===80) return '≥80km';
+  if(v>=81&&v<=88){const t=[35,40,45,50,55,60,65,70];return`${t[v-81]}km`;}
+  if(v===89) return '≥70km';
+  if(v===90) return '<50m';
+  if(v===91) return '50m';
+  if(v===92) return '200m';
+  if(v===93) return '500m';
+  if(v===94) return '1km';
+  if(v===95) return '2km';
+  if(v===96) return '4km';
+  if(v===97) return '10km';
+  if(v===98) return '20km';
+  if(v===99) return '≥50km';
+  return null;
+}
+function synopVisIsLow(visStr){
+  if(!visStr||visStr==='—') return false;
+  if(visStr.startsWith('<')) return true;
+  if(visStr.endsWith('km')) return parseFloat(visStr)<2;
+  if(visStr.endsWith('m')) return parseInt(visStr,10)<2000;
+  return false;
+}
+function decodeSynopCloudHt(h){
+  const t=['<50m','50m','100m','200m','300m','600m','1000m','1500m','2000m','≥2500m'];
+  return (h!==null&&h!==undefined&&h>=0&&h<=9)?t[h]:null;
+}
+function decodeSynopCloudCover(n){
+  if(n===null||n===undefined) return null;
+  if(n===0) return 'CLR';
+  if(n<=2) return 'FEW';
+  if(n<=4) return 'SCT';
+  if(n<=7) return 'BKN';
+  if(n===8) return 'OVC';
+  if(n===9) return 'OBS';
+  return null;
+}
+function decodeSynopHshs(hshs){
+  const v=parseInt(hshs,10);
+  if(isNaN(v)) return null;
+  if(v===0) return '<100ft';
+  if(v<=50) return `${v*100}ft`;
+  if(v===51) return '6000ft';
+  if(v===52) return '7000ft';
+  if(v===53) return '8000ft';
+  if(v===54) return '9000ft';
+  if(v===55) return '≥10000ft';
+  if(v>=81&&v<=88){const t=[3500,4000,4500,5000,5500,6000,6500,7000];return`${t[v-81]}ft`;}
+  if(v===89) return '≥7000ft';
+  return null;
+}
+function decodeSynopRain(rrr){
+  const v=parseInt(rrr,10);
+  if(isNaN(v)) return null;
+  if(v>=990) return 'Trace';
+  return `${(v/10).toFixed(1)}mm`;
+}
+function decodeSynopCloudNs(ns){
+  if(ns===null||ns===undefined||ns==='/'||ns==='9') return null;
+  const n=parseInt(ns,10);
+  if(isNaN(n)) return null;
+  if(n===0) return 'CLR';
+  if(n<=2) return 'FEW';
+  if(n<=4) return 'SCT';
+  if(n<=7) return 'BKN';
+  if(n===8) return 'OVC';
+  return null;
+}
+
+/* Parse positional iRiXhVV + Nddff then optional groups; continues into Section 3 (333). */
+function parseSynopMetGroups(tok,ti,windInd){
+  const obj={};
+  const isMps=(windInd===1||windInd===4);
+  obj.windUnit='kt';
+  obj.cloudLayers=[];
+  // iRiXhVV
+  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
+    const g=tok[ti++];
+    const h=g[2];
+    obj.cloudHtCode=(h!=='/')?parseInt(h,10):null;
+    obj.cloudHt=decodeSynopCloudHt(obj.cloudHtCode);
+    const vv=g.slice(3);
+    obj.visCode=(vv!=='//') ? vv : null;
+    obj.vis=obj.visCode!==null?decodeSynopVis(obj.visCode):null;
+  }
+  // Nddff
+  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
+    const g=tok[ti++];
+    const N=g[0],dd=g.slice(1,3),ff=g.slice(3);
+    obj.cloudCoverN=(N!=='/')?parseInt(N,10):null;
+    obj.cloudCover=decodeSynopCloudCover(obj.cloudCoverN);
+    obj.windDirVrb=(dd==='99');
+    obj.windDir=(!obj.windDirVrb&&dd!=='//') ? parseInt(dd,10)*10 : null;
+    obj.windSpd=(ff!=='//') ? parseInt(ff,10) : null;
+    obj.windCalm=(obj.windDir===0&&obj.windSpd===0);
+    if(ti<tok.length&&/^00\d{3}$/.test(tok[ti])) obj.windSpd=parseInt(tok[ti++].slice(2),10);
+    if(isMps&&obj.windSpd!==null) obj.windSpd=Math.round(obj.windSpd*1.944);
+  }
+  let inSec3=false;
+  while(ti<tok.length){
+    const g=tok[ti++];
+    if(g==='444'||g==='555') break;
+    if(g==='333'){inSec3=true;continue;}
+    if(!inSec3){
+      if(/^1[01]\d{3}$/.test(g)){
+        obj.tempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+      } else if(/^2[01]\d{3}$/.test(g)){
+        obj.dewC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+      } else if(/^3\d{4}$/.test(g)){
+        const p=parseInt(g.slice(1),10);
+        obj.staPress=p<5000?(p+10000)/10:p/10;
+      } else if(/^4\d{4}$/.test(g)){
+        const p=parseInt(g.slice(1),10);
+        obj.slp=p<5000?(p+10000)/10:p/10;
+      } else if(/^6\d{4}$/.test(g)){
+        const r=decodeSynopRain(g.slice(1,4));
+        if(r!==null) obj.rainMm=r;
+      }
+    } else {
+      // Section 3
+      if(/^1[01]\d{3}$/.test(g)){
+        obj.maxTempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+      } else if(/^2[01]\d{3}$/.test(g)){
+        obj.minTempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
+      } else if(/^6\d{4}$/.test(g)){
+        const r=decodeSynopRain(g.slice(1,4));
+        if(r!==null) obj.rainMm=r;
+      } else if(/^8\d{4}$/.test(g)){
+        const ns=g[1],C=g[2],hshs=g.slice(3);
+        const cover=decodeSynopCloudNs(ns);
+        const htStr=decodeSynopHshs(hshs);
+        if(cover||htStr) obj.cloudLayers.push({cover,htStr,C});
+      }
+    }
+  }
+  return obj;
+}
+function parseSynop(rawText){
+  if(!rawText) return{timeStr:null,stations:[]};
+  const clean=rawText.replace(/\r/g,'');
+
+  // ── AAXX (FM 12 land station) ──
+  const aaxxM=clean.match(/\bAAXX\s+(\d\d)(\d\d)(\d)\b/);
+  if(aaxxM){
+    const day=aaxxM[1],hour=aaxxM[2],windInd=parseInt(aaxxM[3],10);
+    const timeStr=`${day}/${hour}00Z`;
+    const section=clean.slice(aaxxM.index+aaxxM[0].length);
+    const recs=section.split('=')
+      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
+      .filter(r=>/^\d{5}\b/.test(r));
+    const stations=recs.map(rec=>{
+      const tok=rec.trim().split(/\s+/);
+      if(!/^\d{5}$/.test(tok[0])) return null;
+      return Object.assign({station:tok[0],raw:rec,timeStr},parseSynopMetGroups(tok,1,windInd));
+    }).filter(Boolean);
+    return{timeStr,stations};
+  }
+
+  // ── BBXX (FM 13 ship / mobile) ──
+  const bbxxM=clean.match(/\bBBXX\b/);
+  if(bbxxM){
+    const section=clean.slice(bbxxM.index+bbxxM[0].length);
+    const recs=section.split('=')
+      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
+      .filter(r=>r.length>4&&!/^(NNNN|NIL)$/.test(r.trim()));
+    const stations=[];
+    for(const rec of recs){
+      const tok=rec.trim().split(/\s+/);
+      if(tok.length<3) continue;
+      let ti=0;
+      const callSign=tok[ti++];
+      if(!callSign||/^\d{5}$/.test(callSign)){ti=0;} // handle bulletins without call sign
+      let windInd=1,staTimeStr=null;
+      // YYGGI
+      if(ti<tok.length&&/^\d{5}$/.test(tok[ti])){
+        const yg=tok[ti++];
+        windInd=parseInt(yg[4],10);
+        staTimeStr=`${yg.slice(0,2)}/${yg.slice(2,4)}00Z`;
+      }
+      // Skip 99LaLaLa and QcLoLoLoLo
+      if(ti<tok.length&&/^99\d{3}$/.test(tok[ti])) ti++;
+      if(ti<tok.length&&/^[1357]\d{4}$/.test(tok[ti])) ti++;
+      if(ti>=tok.length) continue;
+      const obj=Object.assign({station:callSign,raw:rec,timeStr:staTimeStr},parseSynopMetGroups(tok,ti,windInd));
+      stations.push(obj);
+    }
+    const timeStr=stations[0]?.timeStr||null;
+    return{timeStr,stations};
+  }
+
+  return{timeStr:null,stations:[]};
+}
+
+function makeSynopCard(sta,defaultTimeStr){
+  const timeStr=sta.timeStr||defaultTimeStr||'';
+  const spdKt=sta.windCalm?0:(sta.windSpd!=null?sta.windSpd:null);
+  const wCol=windSpeedColor(spdKt);
+  const accentCol=wCol==='inherit'?'var(--accent-strong)':wCol;
+
+  // Wind string
+  let windLabel='—';
+  if(sta.windSpd!=null){
+    if(sta.windCalm){
+      windLabel='CALM';
+    } else {
+      const dir=sta.windDirVrb?'VRB':(sta.windDir!=null?String(sta.windDir).padStart(3,'0')+'°':'///');
+      windLabel=`${dir} / ${sta.windSpd}kt`;
+    }
+  }
+
+  // Rose SVG
+  const roseSvg=(spdKt!=null&&!sta.windCalm&&sta.windDir!=null)
+    ?windRoseSvg(sta.windDir,spdKt)
+    :`<svg class="wind-rose" viewBox="0 0 52 52"><circle cx="26" cy="26" r="20" fill="none" stroke="rgba(85,193,255,0.15)" stroke-width="1.5"/><text x="26" y="30" text-anchor="middle" fill="rgba(200,225,255,0.3)" font-size="9">CALM</text></svg>`;
+
+  // Vis
+  const visStr=sta.vis||'—';
+  const visLow=synopVisIsLow(sta.vis);
+  const visCol=visLow?'#ff8080':'#d0e8ff';
+
+  // Cloud cover (Sec 1)
+  let cloudStr='—';
+  if(sta.cloudCover){cloudStr=sta.cloudCover;if(sta.cloudHt)cloudStr+=` ${sta.cloudHt}`;}
+
+  // Temp / Dew
+  const tCol=(sta.tempC!=null)?tempColorCode(sta.tempC):'#d0e8ff';
+  const tempStr=(sta.tempC!=null)?`${sta.tempC.toFixed(1)}°C`:'—';
+  const dewStr=(sta.dewC!=null)?`${sta.dewC.toFixed(1)}°C`:'—';
+
+  // SLP / Sta press
+  const slpStr=(sta.slp!=null)?`${sta.slp.toFixed(1)} hPa`:(sta.staPress!=null)?`${sta.staPress.toFixed(1)} hPa`:'—';
+
+  // Rain
+  const rainStr=(sta.rainMm!=null)?sta.rainMm:'—';
+
+  // Max/Min temp
+  const maxTCol=(sta.maxTempC!=null)?tempColorCode(sta.maxTempC):'#d0e8ff';
+  const minTCol=(sta.minTempC!=null)?tempColorCode(sta.minTempC):'#d0e8ff';
+  const maxTStr=(sta.maxTempC!=null)?`${sta.maxTempC.toFixed(1)}°C`:'—';
+  const minTStr=(sta.minTempC!=null)?`${sta.minTempC.toFixed(1)}°C`:'—';
+
+  // Cloud layers from Section 3 (8NsChshs)
+  let layersHtml='';
+  if(sta.cloudLayers&&sta.cloudLayers.length>0){
+    layersHtml=sta.cloudLayers.map(l=>{
+      const parts=[];
+      if(l.cover) parts.push(l.cover);
+      if(l.htStr) parts.push(l.htStr);
+      return parts.join(' ')||'—';
+    }).join(' · ');
+  } else {
+    layersHtml='—';
+  }
+
+  const card=document.createElement('div');
+  card.className='synop-card';
+  card.style.setProperty('--card-accent',accentCol);
+  card.innerHTML=`
+    <div class="synop-card-hdr">
+      <span class="synop-card-id">${sta.station}</span>
+      <span class="synop-card-time">${timeStr}</span>
+    </div>
+    <div class="synop-card-wind-row">
+      ${roseSvg}
+      <div style="flex:1;min-width:0;">
+        <div class="synop-m-lbl">WIND</div>
+        <div style="font-size:13px;font-weight:700;color:${wCol};white-space:nowrap;">${windLabel}</div>
+      </div>
+    </div>
+    <div class="synop-metrics-grid">
+      <div class="synop-m"><div class="synop-m-lbl">VIS</div><div class="synop-m-val" style="color:${visCol}">${visStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">COVER</div><div class="synop-m-val">${cloudStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">TEMP</div><div class="synop-m-val" style="color:${tCol}">${tempStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">DEW</div><div class="synop-m-val">${dewStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">SLP</div><div class="synop-m-val">${slpStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">RAIN</div><div class="synop-m-val">${rainStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">MAX T</div><div class="synop-m-val" style="color:${maxTCol}">${maxTStr}</div></div>
+      <div class="synop-m"><div class="synop-m-lbl">MIN T</div><div class="synop-m-val" style="color:${minTCol}">${minTStr}</div></div>
+      <div class="synop-m" style="grid-column:1/-1"><div class="synop-m-lbl">CLOUD LAYERS</div><div class="synop-m-val" style="font-size:11px;white-space:normal;">${layersHtml}</div></div>
+    </div>`;
+  return card;
+}
+
+function renderSynopRow(index,rawText){
+  const section=synopTbody.querySelector(`.synop-blt-section[data-idx="${index}"]`);
+  if(!section) return;
+  section.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(rawText);
+  const cardsGrid=section.querySelector('.synop-cards-grid');
+  cardsGrid.innerHTML='';
+  const parsed=parseSynop(rawText);
+  const timeEl=section.querySelector('.synop-blt-time');
+  if(timeEl&&parsed.timeStr) timeEl.textContent=parsed.timeStr;
+  if(parsed.stations.length===0){
+    cardsGrid.innerHTML=`<p style="color:var(--muted);font-size:12px;padding:4px 2px;">No decoded observations — click Raw ▾ to inspect the bulletin.</p>`;
+  } else {
+    for(const sta of parsed.stations){
+      cardsGrid.appendChild(makeSynopCard(sta,parsed.timeStr));
+    }
+  }
+}
+
 function buildSynopTable(){
   synopTbody.innerHTML='';
-  const sources=['TNCA SINU50','TNCA SMNU50','TNCC SI','TNCC SM'];
-  sources.forEach((name,i)=>{
-    const tr=document.createElement('tr');
-    tr.dataset.idx=String(i);
-    tr.innerHTML=`<td class="station">${name}</td><td><div class="synop-raw"></div></td>`;
-    synopTbody.appendChild(tr);
+  const names=['TNCA SINU50','TNCA SMNU50','TNCC SI','TNCC SM'];
+  names.forEach((name,i)=>{
+    const sec=document.createElement('div');
+    sec.className='synop-blt-section'; sec.dataset.idx=String(i);
+    sec.innerHTML=`
+      <div class="synop-blt-header">
+        <span class="station">${name}</span>
+        <span class="synop-blt-time"></span>
+        <button class="synop-raw-btn" data-idx="${i}">Raw ▾</button>
+      </div>
+      <div class="synop-cards-grid"></div>
+      <div class="synop-raw-row hidden"><div class="synop-raw"></div></div>`;
+    synopTbody.appendChild(sec);
+  });
+  synopTbody.addEventListener('click',e=>{
+    const btn=e.target.closest('.synop-raw-btn');
+    if(!btn) return;
+    const sec=synopTbody.querySelector(`.synop-blt-section[data-idx="${btn.dataset.idx}"]`);
+    if(!sec) return;
+    const rawRow=sec.querySelector('.synop-raw-row');
+    rawRow.classList.toggle('hidden');
+    btn.textContent=rawRow.classList.contains('hidden')?'Raw ▾':'Raw ▴';
   });
 }
 buildSynopTable();
@@ -1725,8 +2097,7 @@ async function loadSynopRow(index,url){
   try{
     const out=await fetchWithRetries(url,MAX_RETRIES);
     if(out&&out.ok&&out.text){
-      const row=synopTbody.querySelector(`tr[data-idx="${index}"]`);
-      if(row)row.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(out.text);
+      renderSynopRow(index,out.text);
       const local=formatLocalDateTimeParts();
       if(synopUpdatedEl)synopUpdatedEl.textContent=`SYNOP last updated: ${local.date} ${local.time}`;
     }
@@ -1846,23 +2217,80 @@ function evaluateStation(row){
   return{alerts:[],severity:isStaleDate?3:0,isStaleDate};
 }
 
+/* ── COLOUR HELPERS (stations dashboard) ── */
+function windSpeedColor(kn){
+  if(kn===null||typeof kn!=='number'||isNaN(kn)||kn<2)return'#3fcf82';
+  if(kn>=25)return'#ff5f5f';
+  if(kn>=15)return'#f59e0b';
+  return'#55c1ff';
+}
+function tempColorCode(c){
+  if(c===null||typeof c!=='number'||isNaN(c))return'#d0e8ff';
+  if(c>=35)return'#ff5f5f';
+  if(c>=30)return'#ff8c42';
+  if(c>=25)return'#f5c330';
+  if(c>=20)return'#3fcf82';
+  return'#55c1ff';
+}
+function humidColorCode(h){
+  if(h===null||typeof h!=='number'||isNaN(h))return'#d0e8ff';
+  if(h>=85)return'#a78bfa';
+  if(h>=70)return'#55c1ff';
+  if(h>=50)return'#3fcf82';
+  return'#f59e0b';
+}
+function rainColorCode(mm){
+  if(mm===null||mm===0)return'rgba(200,230,255,0.35)';
+  if(mm>=20)return'#a78bfa';
+  if(mm>=5)return'#55c1ff';
+  return'#93c5fd';
+}
+
 function windRoseSvg(directionDeg,speed){
+  const id=++_windRoseId;
   const dir=(typeof directionDeg==='number'&&isFinite(directionDeg))?directionDeg:null;
   const sp=(typeof speed==='number'&&isFinite(speed))?speed:null;
-  if(dir===null){return`<svg viewBox="0 0 84 84" class="wind-rose"><circle cx="42" cy="42" r="30" stroke="rgba(85,193,255,0.15)" stroke-width="1.5" fill="none"/><text x="42" y="47" fill="rgba(106,138,170,0.6)" font-size="13" text-anchor="middle" font-family="Space Mono,monospace">—</text></svg>`;}
-  const maxLen=27,len=sp?Math.min(maxLen,Math.max(6,(sp/20)*maxLen)):10;
-  const arrowColor=sp>=25?'#ff5f5f':(sp>=15?'#f59e0b':'#3fcf82');
+  const color=windSpeedColor(sp);
+
+  // Shared compass frame: outer speed-colored ring, inner dashed ring, cardinal ticks, N label
+  const frame=`
+    <defs><radialGradient id="rg${id}" cx="50%" cy="50%" r="50%"><stop offset="50%" stop-color="${color}" stop-opacity="0"/><stop offset="100%" stop-color="${color}" stop-opacity="0.16"/></radialGradient></defs>
+    <circle cx="50" cy="50" r="48" fill="url(#rg${id})"/>
+    <circle cx="50" cy="50" r="40" stroke="${color}" stroke-width="1.5" fill="none" stroke-opacity="0.4"/>
+    <circle cx="50" cy="50" r="24" stroke="rgba(85,193,255,0.1)" stroke-width="0.8" fill="none" stroke-dasharray="2,4"/>
+    <line x1="50" y1="10" x2="50" y2="17" stroke="rgba(200,230,255,0.55)" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="50" y1="83" x2="50" y2="90" stroke="rgba(200,230,255,0.2)" stroke-width="1"   stroke-linecap="round"/>
+    <line x1="10" y1="50" x2="17" y2="50" stroke="rgba(200,230,255,0.2)" stroke-width="1"   stroke-linecap="round"/>
+    <line x1="83" y1="50" x2="90" y2="50" stroke="rgba(200,230,255,0.2)" stroke-width="1"   stroke-linecap="round"/>
+    <text x="50" y="22" text-anchor="middle" dominant-baseline="middle" fill="rgba(200,230,255,0.65)" font-size="8" font-family="'Barlow Condensed',sans-serif" font-weight="700">N</text>`;
+
+  // No direction: show dash
+  if(dir===null){
+    return`<svg viewBox="0 0 100 100" class="wind-rose">${frame}
+      <text x="50" y="54" text-anchor="middle" dominant-baseline="middle" fill="rgba(106,138,170,0.45)" font-size="16" font-family="Space Mono,monospace">—</text>
+    </svg>`;
+  }
+
+  // Calm (< 2 kt): concentric rings, no arrow
+  if(sp!==null&&sp<2){
+    return`<svg viewBox="0 0 100 100" class="wind-rose">${frame}
+      <circle cx="50" cy="50" r="11" stroke="${color}" stroke-width="2" fill="none" stroke-opacity="0.7"/>
+      <circle cx="50" cy="50" r="4"  fill="${color}" fill-opacity="0.8"/>
+    </svg>`;
+  }
+
   const toDeg=(dir+180)%360;
-  return`<svg viewBox="0 0 84 84" class="wind-rose">
-    <defs><marker id="arr${++_windRoseId}" markerWidth="6" markerHeight="6" refX="0" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 z" fill="${arrowColor}"/></marker></defs>
-    <circle cx="42" cy="42" r="30" stroke="rgba(85,193,255,0.15)" stroke-width="1.5" fill="none"/>
-    <circle cx="42" cy="42" r="2" stroke="rgba(85,193,255,0.2)" stroke-width="1" fill="none"/>
-    <g transform="translate(42,42) rotate(${toDeg})">
-      <line x1="0" y1="0" x2="0" y2="${-len}" stroke="${arrowColor}" stroke-width="2.5" stroke-linecap="round"/>
-      <polygon points="0,${-(len+7)} -4,${-(len)} 4,${-(len)}" fill="${arrowColor}"/>
-      <circle cx="0" cy="0" r="3" fill="${arrowColor}" fill-opacity="0.7"/>
+  const len=Math.min(30,Math.max(10,(sp/20)*30));
+  const tipY=-(len+10);
+
+  return`<svg viewBox="0 0 100 100" class="wind-rose">${frame}
+    <g transform="translate(50,50) rotate(${toDeg})">
+      <line x1="0" y1="8" x2="0" y2="${-len}" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="0,${tipY} -5,${-len} 5,${-len}" fill="${color}"/>
+      <circle cx="0" cy="8" r="2.5" fill="${color}" fill-opacity="0.5"/>
     </g>
-    <text x="42" y="75" fill="rgba(200,230,255,0.7)" font-size="11" text-anchor="middle" font-family="Space Mono,monospace">${sp!==null?Math.round(sp)+' kn':'—'}</text>
+    <circle cx="50" cy="50" r="5"   fill="${color}" fill-opacity="0.9"/>
+    <circle cx="50" cy="50" r="2.5" fill="rgba(255,255,255,0.9)"/>
   </svg>`;
 }
 
@@ -1930,27 +2358,32 @@ function renderStationsList(rows){
     const windText=r.wind_direction_text||r.wind_direction||'—';
     const rose=windRoseSvg(windDeg,windKn);
     const badge=ev.isStaleDate?'<span class="sc-badge stale">Stale</span>':'<span class="sc-badge fresh">Live</span>';
-    return`<div class="station-card">
+    const wColor=windSpeedColor(windKn);
+    const tColor=tempColorCode(r.temperature_c);
+    const hColor=humidColorCode(r.humidity_percent);
+    const rColor=rainColorCode(r.rain_today_mm);
+    const hiColor=tempColorCode(r.heat_index_c);
+    return`<div class="station-card" style="--card-accent:${wColor}">
       <div class="sc-header">
         <div class="sc-name">${escapeHtml(r.station)}</div>
         ${badge}
       </div>
       <div class="sc-main">
         <div class="sc-temp-block">
-          <span class="sc-temp-val">${tempNum!==null?tempNum:'—'}</span>
+          <span class="sc-temp-val" style="color:${tColor}">${tempNum!==null?tempNum:'—'}</span>
           <span class="sc-temp-unit">${tempNum!==null?' °C':''}</span>
         </div>
         ${rose}
         <div class="sc-wind-block">
-          <div class="sc-wind-spd">${windKn!==null?windKn:'—'}</div>
+          <div class="sc-wind-spd" style="color:${wColor}">${windKn!==null?windKn:'—'}</div>
           <div class="sc-wind-lbl">${windKn!==null?windText+' · kn':''}</div>
         </div>
       </div>
       <div class="sc-grid">
-        <div class="sc-metric"><span class="sc-metric-lbl">Feels like</span><span class="sc-metric-val">${hiNum!==null?hiNum+'°':'—'}</span></div>
-        <div class="sc-metric"><span class="sc-metric-lbl">Humidity</span><span class="sc-metric-val">${r.humidity_percent!=null?r.humidity_percent+'%':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Feels like</span><span class="sc-metric-val" style="color:${hiColor}">${hiNum!==null?hiNum+'°':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Humidity</span><span class="sc-metric-val" style="color:${hColor}">${r.humidity_percent!=null?r.humidity_percent+'%':'—'}</span></div>
         <div class="sc-metric"><span class="sc-metric-lbl">Dir</span><span class="sc-metric-val">${windDeg!==null?windDeg+'°':'—'}</span></div>
-        <div class="sc-metric"><span class="sc-metric-lbl">Rain</span><span class="sc-metric-val">${r.rain_today_mm!=null?r.rain_today_mm+' mm':'—'}</span></div>
+        <div class="sc-metric"><span class="sc-metric-lbl">Rain</span><span class="sc-metric-val" style="color:${rColor}">${r.rain_today_mm!=null?r.rain_today_mm+' mm':'—'}</span></div>
       </div>
       <div class="sc-footer">${escapeHtml(r.last_updated||'—')}</div>
     </div>`;
