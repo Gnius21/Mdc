@@ -522,6 +522,53 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .knmi-tile.knmi-bad{border-color:rgba(239,68,68,0.6);}
 .knmi-tile.knmi-bad::before{background:linear-gradient(90deg,var(--alert),transparent 70%);}
 .knmi-tile.knmi-bad .knmi-tile-val{color:var(--alert);}
+.knmi-tile.knmi-ok{border-color:rgba(52,211,153,0.4);}
+.knmi-tile.knmi-ok::before{background:linear-gradient(90deg,var(--ok),transparent 70%);}
+.knmi-tile.knmi-ok .knmi-tile-val{color:#5ee0a8;}
+
+/* KNMI feels-like hero card */
+.knmi-feels{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  margin:6px 14px 4px;padding:14px 18px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(16,42,82,0.85),rgba(9,24,50,0.55));
+  border:1px solid rgba(85,193,255,0.2);position:relative;overflow:hidden;
+}
+.knmi-feels.hidden{display:none;}
+.knmi-feels::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:var(--fl-accent,var(--accent-strong));}
+.knmi-feels-icon{font-size:30px;line-height:1;filter:drop-shadow(0 0 8px var(--fl-accent,rgba(85,193,255,0.7)));}
+.knmi-feels-main{display:flex;flex-direction:column;gap:2px;}
+.knmi-feels-lbl{font-size:10px;letter-spacing:1.5px;font-weight:700;color:rgba(200,225,255,0.5);text-transform:uppercase;}
+.knmi-feels-val{font-size:38px;font-weight:800;line-height:1;color:var(--fl-accent,#d0e8ff);font-family:var(--cond);}
+.knmi-feels-unit{font-size:18px;font-weight:600;color:rgba(200,225,255,0.55);margin-left:2px;}
+.knmi-feels-meta{display:flex;flex-direction:column;gap:3px;margin-left:auto;text-align:right;}
+.knmi-feels-word{font-size:14px;font-weight:700;color:var(--fl-accent,#d0e8ff);letter-spacing:0.5px;}
+.knmi-feels-delta{font-size:11px;color:rgba(200,225,255,0.6);font-family:var(--mono);}
+.knmi-feels-note{font-size:10px;color:rgba(200,225,255,0.4);font-family:var(--mono);}
+.knmi-feels.fl-cool{--fl-accent:#5ad1a0;}
+.knmi-feels.fl-ok{--fl-accent:#7ad17a;}
+.knmi-feels.fl-caution{--fl-accent:#f5b042;}
+.knmi-feels.fl-danger{--fl-accent:#ff7a3c;}
+.knmi-feels.fl-extreme{--fl-accent:#ff5050;}
+
+/* KNMI trend charts */
+.knmi-charts-head{
+  margin:14px 14px 0;padding-top:12px;border-top:1px solid rgba(85,193,255,0.12);
+  font-family:var(--cond);font-size:13px;font-weight:700;letter-spacing:0.8px;
+  color:var(--accent);text-transform:uppercase;
+}
+.knmi-charts-sub{font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:0;color:rgba(200,225,255,0.4);text-transform:none;margin-left:6px;}
+.knmi-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px;padding:12px 14px 14px;}
+.knmi-charts-loading{color:var(--muted);font-size:12px;padding:8px 2px;}
+.knmi-chart{
+  background:rgba(5,16,36,0.8);border:1px solid rgba(85,193,255,0.12);
+  border-radius:10px;padding:8px 10px 4px;
+}
+.knmi-chart-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
+.knmi-chart-title{font-size:11px;font-weight:700;letter-spacing:0.5px;color:rgba(200,225,255,0.6);text-transform:uppercase;}
+.knmi-chart-cur{font-family:var(--mono);font-size:13px;font-weight:700;}
+.knmi-chart-svg{width:100%;height:110px;display:block;overflow:visible;}
+.knmi-chart-svg .knmi-ax{fill:rgba(200,225,255,0.35);font-size:9px;font-family:var(--mono);}
+.knmi-chart-svg .knmi-ax-now{fill:rgba(255,255,255,0.55);font-size:9px;font-family:var(--mono);}
 
 /* ── TAF FORECAST CARDS ── */
 .taf-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px;padding:16px;}
@@ -929,7 +976,10 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       </div>
       <div class="table-card">
         <div id="knmiStatus" class="knmi-status">Loading live KNMI Bonaire observations…</div>
+        <div id="knmiFeels" class="knmi-feels hidden"></div>
         <div id="knmiGrid" class="knmi-grid"></div>
+        <div class="knmi-charts-head">Trends · 6h history → now → 6h forecast <span class="knmi-charts-sub">(model: Open-Meteo · ◆ = live KNMI obs)</span></div>
+        <div id="knmiCharts" class="knmi-charts"></div>
       </div>
     </div>
 
@@ -1413,14 +1463,14 @@ function buildKnmiGridHtml(parsed){
     if(f.msToKt && isFinite(num)) disp = Math.round(num * 1.94384);
     else if(f.mToKm && isFinite(num)) disp = (num/1000).toFixed(2);
     if(f.dirExtra){ disp = rec.value + (rec.extra ? ' ' + rec.extra + '°' : ''); unit = ''; }
-    // Color coding
+    // Color coding — green (ok) within normal range, amber warn, red bad
     var dnum = parseFloat(disp);
     var colorClass = '';
     function band(v, warnLo, badLo, warnHi, badHi){
       if(!isFinite(v)) return '';
       if((badLo!=null && v<=badLo)||(badHi!=null && v>=badHi)) return 'knmi-bad';
       if((warnLo!=null && v<=warnLo)||(warnHi!=null && v>=warnHi)) return 'knmi-warn';
-      return '';
+      return 'knmi-ok';
     }
     switch(f.lbl){
       case 'Temperature': colorClass = band(dnum, 22, 18, 32, 35); break;
@@ -1432,6 +1482,7 @@ function buildKnmiGridHtml(parsed){
       case 'Precip':      colorClass = band(dnum, null, null, 1, 5); break;
       case 'Visibility':  colorClass = band(dnum, 5, 2, null, null); break;
       case 'Cloud Cover': colorClass = band(dnum, null, null, 7, null); break;
+      case 'Solar Rad':   colorClass = band(dnum, null, null, 800, 1000); break;
     }
     html += '<div class="knmi-tile ' + colorClass + '"><div class="knmi-tile-lbl">' + f.lbl + '</div>' +
             '<div class="knmi-tile-val">' + disp + (unit?' <small>'+unit+'</small>':'') + '</div></div>';
@@ -1468,6 +1519,8 @@ async function loadKnmiData(force){
           propagateKnmi();
           var sHtml = buildKnmiGridHtml(sParsed);
           if(sHtml) gridEl.innerHTML = sHtml;
+          renderKnmiFeels();
+          loadKnmiCharts();
           statusEl.textContent = 'Showing cached data · refreshing…';
         }
       }
@@ -1487,6 +1540,8 @@ async function loadKnmiData(force){
     var html = buildKnmiGridHtml(parsed);
     if(!html) throw new Error('no fields parsed (page format may have changed)');
     gridEl.innerHTML = html;
+    renderKnmiFeels();
+    loadKnmiCharts();
     statusEl.className = 'knmi-status ok';
     statusEl.textContent = resp.stale
       ? '⚠ Cached KNMI data (offline) · ' + new Date(resp.cachedAt).toLocaleTimeString()
@@ -1503,6 +1558,152 @@ async function loadKnmiData(force){
       (/fetch|network|CORS/i.test(msg) ? 'The page may be blocking cross-origin access. ' : '') + '(' + msg + ')';
     gridEl.innerHTML = '';
   }
+}
+
+/* ── FEELS-LIKE (apparent temperature) ── */
+/* NWS heat-index (Rothfusz) for warm conditions; wind-chill not relevant in the tropics. */
+function heatIndexC(Tc, RH){
+  if(Tc==null || RH==null || !isFinite(Tc) || !isFinite(RH)) return null;
+  var T = Tc*9/5 + 32; // °F
+  if(T < 80){
+    var simple = 0.5*(T + 61 + ((T-68)*1.2) + (RH*0.094));
+    return ((simple + T)/2 - 32)*5/9;
+  }
+  var HI = -42.379 + 2.04901523*T + 10.14333127*RH - 0.22475541*T*RH
+         - 0.00683783*T*T - 0.05481717*RH*RH + 0.00122874*T*T*RH
+         + 0.00085282*T*RH*RH - 0.00000199*T*T*RH*RH;
+  if(RH < 13 && T >= 80 && T <= 112) HI -= ((13-RH)/4)*Math.sqrt((17-Math.abs(T-95))/17);
+  else if(RH > 85 && T >= 80 && T <= 87) HI += ((RH-85)/10)*((87-T)/5);
+  return (HI - 32)*5/9;
+}
+function feelsLikeBand(hi){
+  if(hi==null) return {cls:'', word:''};
+  if(hi < 27)  return {cls:'fl-cool',    word:'Comfortable'};
+  if(hi < 32)  return {cls:'fl-ok',      word:'Warm'};
+  if(hi < 41)  return {cls:'fl-caution', word:'Caution'};
+  if(hi < 54)  return {cls:'fl-danger',  word:'Extreme caution'};
+  return {cls:'fl-extreme', word:'Danger'};
+}
+function renderKnmiFeels(){
+  var el = byId('knmiFeels');
+  if(!el) return;
+  var n = window.__knmiData;
+  if(!n || n.temp_c==null || n.rh==null){ el.classList.add('hidden'); return; }
+  var hi = heatIndexC(n.temp_c, n.rh);
+  if(hi==null){ el.classList.add('hidden'); return; }
+  var b = feelsLikeBand(hi);
+  var delta = hi - n.temp_c;
+  var deltaStr = (delta>=0?'+':'') + delta.toFixed(1) + '° vs actual ' + n.temp_c.toFixed(1) + '°C';
+  el.className = 'knmi-feels ' + b.cls;
+  el.innerHTML =
+    '<div class="knmi-feels-icon">🌡️</div>' +
+    '<div class="knmi-feels-main">' +
+      '<div class="knmi-feels-lbl">FEELS LIKE</div>' +
+      '<div class="knmi-feels-val">' + hi.toFixed(1) + '<span class="knmi-feels-unit">°C</span></div>' +
+    '</div>' +
+    '<div class="knmi-feels-meta">' +
+      '<div class="knmi-feels-word">' + b.word + '</div>' +
+      '<div class="knmi-feels-delta">' + deltaStr + '</div>' +
+      '<div class="knmi-feels-note">Heat index · ' + Math.round(n.rh) + '% RH</div>' +
+    '</div>';
+}
+
+/* ── KNMI TREND CHARTS (Open-Meteo: 6h back · now · 6h forecast) ── */
+const KNMI_LAT = 12.13, KNMI_LON = -68.27; // Bonaire (Flamingo)
+async function fetchJsonWithFallback(url){
+  try{ const r=await fetchWithTimeout(url,8000); if(r&&r.ok){ const j=await r.json(); if(j) return j; } }catch(e){}
+  try{ const r=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(url),9000); if(r&&r.ok){ const j=await r.json(); if(j) return j; } }catch(e){}
+  return null;
+}
+/* Build one mini line chart. cfg: {title,unit,color,times[],values[],nowIdx,actual} */
+function knmiChartSvg(cfg){
+  const W=300,H=120,padL=34,padR=10,padT=20,padB=18;
+  const iw=W-padL-padR, ih=H-padT-padB;
+  const vals=cfg.values, n=vals.length;
+  const finite=vals.filter(v=>v!=null && isFinite(v));
+  if(!finite.length) return '';
+  let vmin=Math.min.apply(null,finite), vmax=Math.max.apply(null,finite);
+  if(cfg.actual!=null && isFinite(cfg.actual)){ vmin=Math.min(vmin,cfg.actual); vmax=Math.max(vmax,cfg.actual); }
+  if(vmax-vmin < 1e-6){ vmax+=1; vmin-=1; }
+  const pad=(vmax-vmin)*0.12; vmin-=pad; vmax+=pad;
+  const x=i=> padL + (n<=1?0:(i/(n-1))*iw);
+  const y=v=> padT + (1-(v-vmin)/(vmax-vmin))*ih;
+  // split past (solid) / future (dashed) at nowIdx
+  function pathFor(a,b){
+    let d='',started=false;
+    for(let i=a;i<=b;i++){ const v=vals[i]; if(v==null||!isFinite(v)){started=false;continue;}
+      d += (started?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; started=true; }
+    return d.trim();
+  }
+  const ni=cfg.nowIdx;
+  const pastD=pathFor(0,ni), futD=pathFor(ni,n-1);
+  const nowX=x(ni).toFixed(1);
+  const cur = (vals[ni]!=null&&isFinite(vals[ni]))? vals[ni] : null;
+  let dots='';
+  if(cfg.actual!=null && isFinite(cfg.actual)){
+    dots += `<circle cx="${nowX}" cy="${y(cfg.actual).toFixed(1)}" r="3.4" fill="#fff" stroke="${cfg.color}" stroke-width="1.5"/>`;
+    dots += `<path d="M${nowX-3.6} ${(y(cfg.actual)).toFixed(1)} l3.6 -4 l3.6 4 l-3.6 4 z" fill="${cfg.color}" opacity="0.9"/>`;
+  }
+  const fmt=v=> Math.abs(v)>=100? v.toFixed(0) : v.toFixed(1);
+  const curStr = cur!=null? fmt(cur)+(cfg.unit?cfg.unit:'') : '—';
+  return `<div class="knmi-chart">
+    <div class="knmi-chart-hd"><span class="knmi-chart-title">${cfg.title}</span><span class="knmi-chart-cur" style="color:${cfg.color}">${curStr}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="knmi-chart-svg">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+ih}" stroke="rgba(85,193,255,0.12)" stroke-width="1"/>
+      <line x1="${padL}" y1="${(padT+ih).toFixed(1)}" x2="${W-padR}" y2="${(padT+ih).toFixed(1)}" stroke="rgba(85,193,255,0.12)" stroke-width="1"/>
+      <text x="2" y="${(padT+4).toFixed(1)}" class="knmi-ax">${fmt(vmax)}</text>
+      <text x="2" y="${(padT+ih).toFixed(1)}" class="knmi-ax">${fmt(vmin)}</text>
+      <line x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${padT+ih}" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="${nowX}" y="${(padT-7).toFixed(1)}" class="knmi-ax-now" text-anchor="middle">now</text>
+      <text x="${padL}" y="${(H-5).toFixed(1)}" class="knmi-ax">-6h</text>
+      <text x="${(W-padR).toFixed(1)}" y="${(H-5).toFixed(1)}" class="knmi-ax" text-anchor="end">+6h</text>
+      ${pastD?`<path d="${pastD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+      ${futD?`<path d="${futD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`:''}
+      ${dots}
+    </svg>
+  </div>`;
+}
+async function loadKnmiCharts(){
+  const wrap = byId('knmiCharts');
+  if(!wrap) return;
+  if(!wrap.dataset.loaded) wrap.innerHTML = '<div class="knmi-charts-loading">Loading trend charts…</div>';
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+KNMI_LAT+'&longitude='+KNMI_LON+
+    '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m'+
+    '&past_days=1&forecast_days=2&timezone=UTC&wind_speed_unit=kn';
+  const j = await fetchJsonWithFallback(url);
+  if(!j || !j.hourly || !j.hourly.time){
+    if(!wrap.dataset.loaded) wrap.innerHTML = '<div class="knmi-charts-loading">Trend charts unavailable (forecast service unreachable).</div>';
+    return;
+  }
+  const H=j.hourly;
+  const times=H.time.map(t=>Date.parse(t+':00Z'));
+  const now=Date.now();
+  let nowIdx=0,best=Infinity;
+  times.forEach((t,i)=>{ const d=Math.abs(t-now); if(d<best){best=d;nowIdx=i;} });
+  const a=Math.max(0,nowIdx-6), b=Math.min(times.length-1,nowIdx+6);
+  const sliceNow=nowIdx-a;
+  const sl=arr=> arr? arr.slice(a,b+1) : [];
+  const n=window.__knmiData||{};
+  const cloudActual = n.cloud_octa!=null ? Math.round(n.cloud_octa*12.5) : null;
+  const charts=[
+    {title:'Temperature', unit:'°C', color:'#ff9d5c', key:'temperature_2m',       actual:n.temp_c},
+    {title:'Feels Like',  unit:'°C', color:'#ff6b6b', key:'apparent_temperature', actual:heatIndexC(n.temp_c,n.rh)},
+    {title:'Dew Point',   unit:'°C', color:'#5ad1a0', key:'dew_point_2m',          actual:n.dew_c},
+    {title:'Humidity',    unit:'%',  color:'#4fb6ff', key:'relative_humidity_2m',  actual:n.rh},
+    {title:'Wind Speed',  unit:'kt', color:'#9d8cff', key:'wind_speed_10m',        actual:n.wind_kt},
+    {title:'Gusts',       unit:'kt', color:'#c08cff', key:'wind_gusts_10m',        actual:n.gust_kt},
+    {title:'Pressure',    unit:'hPa',color:'#7aa7ff', key:'surface_pressure',      actual:n.slp},
+    {title:'Cloud Cover', unit:'%',  color:'#9fb4cc', key:'cloud_cover',           actual:cloudActual},
+    {title:'Precip',      unit:'mm', color:'#4fc3f7', key:'precipitation',         actual:n.precip_10m}
+  ];
+  let out='';
+  charts.forEach(c=>{
+    const vals=sl(H[c.key]);
+    if(!vals.length) return;
+    out += knmiChartSvg({title:c.title,unit:c.unit,color:c.color,values:vals,nowIdx:sliceNow,actual:c.actual});
+  });
+  wrap.innerHTML = out || '<div class="knmi-charts-loading">No trend data returned.</div>';
+  wrap.dataset.loaded='1';
 }
 
 /* ── METAR PARSING ── */
