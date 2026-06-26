@@ -1461,7 +1461,7 @@ function parseMetar(raw){
   const td=tokens.find(x=>/^M?\d{2}\/M?\d{2}$/.test(x))||'--';
   const qp=tokens.find(x=>/^Q\d{4}$/.test(x))||null;
   let qnh='—';
-  if(qp){const h=qp.slice(1);const inches=(parseInt(h,10)*0.029529983071445).toFixed(2);qnh=`${h} / ${inches}`;}
+  if(qp){const h=qp.slice(1);const inches=(parseInt(h,10)*0.029529983071445).toFixed(2);qnh=`${h} - ${inches}`;}
   const gust=+(windBase.match(/G(\d{2,3})/)?.[1]||0);
   let age=0;
   if(/^\d{6}Z$/.test(time)){
