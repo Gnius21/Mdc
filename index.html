@@ -431,41 +431,63 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 :root.night tr.taf-change-row.type-PROB  td:first-child{color:#9370db;}
 :root.night tr.taf-change-row.type-FM    td:first-child{color:#cc8800;}
 
-/* SYNOP table */
-#synop-table{font-size:15px;}
-#synop-table th{font-size:10px;padding:9px 14px;}
-#synop-table td{font-size:13px;padding:12px 14px;color:#ffffff;}
+/* SYNOP tiles */
 .synop-raw{
   font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.8);
   white-space:pre-wrap;word-break:break-word;line-height:1.65;letter-spacing:0.3px;
 }
-/* SYNOP decoded rows */
-.synop-blt-row td{padding:0;}
-.synop-blt-cell{
-  background:rgba(16,44,84,0.55);padding:8px 14px;
+.synop-blt-section{margin-bottom:4px;}
+.synop-blt-header{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:8px 14px;
+  background:rgba(14,38,76,0.65);
   border-top:2px solid rgba(85,193,255,0.2);
 }
-.synop-blt-cell .station{
-  font-size:12px;font-weight:700;color:var(--accent-strong);letter-spacing:0.6px;
-}
-.synop-blt-time{
-  font-size:11px;color:rgba(200,225,255,0.5);margin-left:10px;font-family:var(--mono);
-}
+.synop-blt-header .station{font-size:12px;font-weight:700;color:var(--accent-strong);letter-spacing:0.6px;}
+.synop-blt-time{font-size:11px;color:rgba(200,225,255,0.5);font-family:var(--mono);}
 .synop-raw-btn{
-  float:right;background:rgba(85,193,255,0.08);border:1px solid rgba(85,193,255,0.25);
+  margin-left:auto;background:rgba(85,193,255,0.08);border:1px solid rgba(85,193,255,0.25);
   color:var(--accent);border-radius:4px;padding:2px 9px;font-size:11px;
   cursor:pointer;transition:background .15s;font-family:var(--mono);
 }
 .synop-raw-btn:hover{background:rgba(85,193,255,0.2);}
-.synop-obs-row td{
-  padding:7px 14px;font-size:13px;
-  border-bottom:1px solid rgba(85,193,255,0.05);
+.synop-cards-grid{display:flex;flex-wrap:wrap;gap:12px;padding:12px 14px;}
+.synop-card{
+  background:rgba(5,16,36,0.8);
+  border:1px solid rgba(85,193,255,0.14);
+  border-radius:10px;padding:12px 14px;
+  flex:1 1 240px;max-width:320px;min-width:210px;
+  position:relative;overflow:hidden;
 }
-.synop-stn{font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.5);padding-left:18px!important;}
-.synop-obs-time{font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.45);}
+.synop-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--card-accent,var(--accent-strong)),transparent 70%);
+}
+.synop-card-hdr{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;padding-bottom:7px;
+  border-bottom:1px solid rgba(85,193,255,0.1);
+}
+.synop-card-id{font-family:var(--mono);font-size:13px;font-weight:700;color:#d0e8ff;}
+.synop-card-time{font-family:var(--mono);font-size:10px;color:rgba(200,225,255,0.38);}
+.synop-card-wind-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px solid rgba(85,193,255,0.08);
+}
+.synop-card-wind-row svg.wind-rose{width:52px;height:52px;flex-shrink:0;}
+.synop-metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.synop-m{
+  background:rgba(85,193,255,0.045);border:1px solid rgba(85,193,255,0.08);
+  border-radius:6px;padding:5px 7px;
+}
+.synop-m-lbl{
+  font-size:8px;letter-spacing:0.9px;font-weight:700;
+  color:rgba(200,225,255,0.32);margin-bottom:3px;text-transform:uppercase;
+}
+.synop-m-val{font-size:12px;font-weight:600;color:#d0e8ff;white-space:nowrap;overflow:hidden;}
+.synop-raw-row{border-top:1px solid rgba(85,193,255,0.08);}
 .synop-raw-row.hidden{display:none;}
-.synop-raw-row td{padding:0;}
-.synop-raw-row .synop-raw{padding:10px 14px 14px;border-top:1px solid rgba(85,193,255,0.1);}
+.synop-raw-row .synop-raw{padding:10px 14px 14px;}
 
 /* ── STATIONS DASHBOARD ── */
 .stations-card{
@@ -662,7 +684,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   td{font-size:13px;padding:10px 10px;}
   td.station{font-size:17px;}
   .clock-time{font-size:22px;}
-  #synop-table td{font-size:12px;}
+  #synop-table{font-size:12px;}
   #taf-table td{font-size:13px;padding:10px 10px;}
   #taf-table td.station{font-size:17px;}
 }
@@ -796,18 +818,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         </div>
       </div>
       <div class="table-card">
-        <table id="synop-table" aria-label="SYNOP list">
-          <thead><tr>
-            <th style="text-align:left;padding-left:18px;">Station</th>
-            <th style="text-align:left;">Time (Z)</th>
-            <th style="text-align:left;">Wind</th>
-            <th style="text-align:left;">Vis</th>
-            <th style="text-align:left;">Cloud</th>
-            <th style="text-align:left;">Temp / Dew</th>
-            <th style="text-align:left;">SLP hPa</th>
-          </tr></thead>
-          <tbody id="synop"></tbody>
-        </table>
+        <div id="synop-table">
+          <div id="synop"></div>
+        </div>
         <div class="status-bar"><span id="synop-updated" style="color:var(--muted)">SYNOP last updated: --:--</span></div>
       </div>
     </div>
@@ -1743,30 +1756,37 @@ function toggleHistoryPanel(icao){
 }
 
 
-/* ── SYNOP ── */
-function decodeSynopVis(vv){
-  if(vv===null||vv===undefined||vv==='//') return null;
-  const v=parseInt(vv,10);
-  if(isNaN(v)) return null;
-  if(v===0) return '<100m';
-  if(v<=50) return v*100<1000?`${v*100}m`:`${(v/10).toFixed(1)}km`;
-  const km51=[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,30,35,40,45,50,60,70,80,90];
-  if(v>=51&&v<=79) return `${km51[v-51]}km`;
-  if(v===80) return '≥80km';
-  if(v>=81&&v<=88){const t=[35,40,45,50,55,60,65,70];return`${t[v-81]}km`;}
-  if(v===89) return '≥70km';
-  if(v===90) return '<50m';
-  if(v===91) return '50m';
-  if(v===92) return '200m';
-  if(v===93) return '500m';
-  if(v===94) return '1km';
-  if(v===95) return '2km';
-  if(v===96) return '4km';
-  if(v===97) return '10km';
-  if(v===98) return '20km';
-  if(v===99) return '≥50km';
-  return null;
+/* ─── SYNOP DECODE (WMO FM-12) ─── */
+const WW = {
+  0:'No significant wx',1:'Clearing cloud',2:'Sky unchanged',3:'Cloud increasing',
+  4:'Visibility haze/smoke',5:'Haze',10:'Mist',11:'Shallow fog',12:'Continuous fog',
+  13:'Lightning, no thunder',17:'Thunderstorm, no precip',18:'Squall',19:'Funnel cloud',
+  20:'Drizzle (recent)',21:'Rain (recent)',22:'Snow (recent)',28:'Fog (recent)',29:'Thunderstorm (recent)',
+  40:'Fog at distance',41:'Fog patches',42:'Fog, thinning',45:'Fog',48:'Fog, depositing rime',
+  51:'Drizzle, slight',53:'Drizzle, moderate',55:'Drizzle, heavy',
+  60:'Rain, intermittent slight',61:'Rain, continuous slight',62:'Rain, intermittent mod',63:'Rain, continuous mod',64:'Rain, heavy',65:'Rain, continuous heavy',
+  66:'Freezing rain, slight',67:'Freezing rain, heavy',
+  70:'Snow, intermittent slight',71:'Snow, continuous slight',73:'Snow, moderate',75:'Snow, heavy',77:'Snow grains',
+  80:'Rain shower, slight',81:'Rain shower, mod/heavy',82:'Rain shower, violent',
+  85:'Snow shower, slight',86:'Snow shower, heavy',
+  89:'Hail shower, slight',90:'Hail shower, heavy',
+  91:'Slight rain + thunderstorm past',95:'Thunderstorm slight/mod',96:'Thunderstorm w/ hail',97:'Heavy thunderstorm',99:'Thunderstorm, hail'
+};
+const CLOUD_H = {0:'<200ft',1:'200–300ft',2:'300–600ft',3:'600–1000ft',4:'1000–2000ft',5:'2000–3300ft',6:'3300–5000ft',7:'5000–6500ft',8:'6500–8000ft',9:'>8000ft'};
+const CL = {0:'—',1:'Cu humilis/fractus',2:'Cu mediocris/congestus',3:'Cb calvus',4:'Sc (from Cu)',5:'Sc (other)',6:'St or Fs',7:'Fs/Cu (bad wx)',8:'Cu & Sc (diff levels)',9:'Cb capillatus'};
+const CM = {0:'—',1:'As translucidus',2:'As opacus / Ns',3:'Ac translucidus (1 layer)',4:'Ac lenticularis',5:'Ac translucidus (multi)',6:'Ac (from Cu)',7:'Ac + As or Ac + Ns',8:'Ac castellanus',9:'Ac of chaotic sky'};
+const CH = {0:'—',1:'Ci fibratus/uncinus',2:'Ci spissatus',3:'Ci spissatus (Cb gen.)',4:'Ci uncinus (spreading)',5:'Ci/Cs (below 45°)',6:'Ci/Cs (above 45°)',7:'Cs covering sky',8:'Cs not covering',9:'Cc'};
+
+function decodeVV99(vv){
+  const n=parseInt(vv,10);
+  if(isNaN(n))return'—';
+  if(n<=50)return`${n*100}m`;
+  if(n<=80)return`${n-50}km`;
+  if(n<=89)return`${(n-80)*30+50}km`;
+  const sp={90:'<50m',91:'50m',92:'200m',93:'500m',94:'1km',95:'2km',96:'4km',97:'10km',98:'20km',99:'50km+'};
+  return sp[n]||'—';
 }
+
 function synopVisIsLow(visStr){
   if(!visStr||visStr==='—') return false;
   if(visStr.startsWith('<')) return true;
@@ -1774,201 +1794,267 @@ function synopVisIsLow(visStr){
   if(visStr.endsWith('m')) return parseInt(visStr,10)<2000;
   return false;
 }
-function decodeSynopCloudHt(h){
-  const t=['<50m','50m','100m','200m','300m','600m','1000m','1500m','2000m','≥2500m'];
-  return (h!==null&&h!==undefined&&h>=0&&h<=9)?t[h]:null;
-}
-function decodeSynopCloudCover(n){
-  if(n===null||n===undefined) return null;
-  if(n===0) return 'CLR';
-  if(n<=2) return 'FEW';
-  if(n<=4) return 'SCT';
-  if(n<=7) return 'BKN';
-  if(n===8) return 'OVC';
-  if(n===9) return 'OBS';
-  return null;
-}
-/* Parse positional iRiXhVV + Nddff then optional groups 1sTTT..4PPPP.
-   Stops at section boundaries 333/444/555. */
-function parseSynopMetGroups(tok,ti,windInd){
-  const obj={};
-  const isMps=(windInd===1||windInd===4);
-  obj.windUnit='kt';
-  // iRiXhVV
-  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
-    const g=tok[ti++];
-    const h=g[2];
-    obj.cloudHtCode=(h!=='/')?parseInt(h,10):null;
-    obj.cloudHt=decodeSynopCloudHt(obj.cloudHtCode);
-    const vv=g.slice(3);
-    obj.visCode=(vv!=='//') ? vv : null;
-    obj.vis=obj.visCode!==null?decodeSynopVis(obj.visCode):null;
+
+function decodeSynopText(rawText){
+  const text = rawText.replace(/\r/g,'').trim();
+  const flat = text.replace(/\n/g,' ').replace(/\s{2,}/g,' ');
+  const hm = flat.match(/\b(S[IM][A-Z]{2}\d{2})\s+([A-Z]{4})\s+(\d{6})\b/);
+  const bulletinType = hm ? hm[1] : null;
+  const bulletinTime = hm ? `${hm[3].slice(0,2)} ${hm[3].slice(2,4)}:${hm[3].slice(4,6)}Z` : null;
+  const aaxx = flat.match(/AAXX\s+(\d{5})/);
+  if(!aaxx){
+    if(/\bNIL\b/.test(flat)) return {bulletinTime, bulletinType, nil:true, reports:[], raw:text};
+    return {bulletinTime, bulletinType, reports:[], raw:text};
   }
-  // Nddff
-  if(ti<tok.length&&/^[\d\/]{5}$/.test(tok[ti])){
-    const g=tok[ti++];
-    const N=g[0],dd=g.slice(1,3),ff=g.slice(3);
-    obj.cloudCoverN=(N!=='/')?parseInt(N,10):null;
-    obj.cloudCover=decodeSynopCloudCover(obj.cloudCoverN);
-    obj.windDirVrb=(dd==='99');
-    // VRB → dir null; calm (dd=00 ff=00) → windCalm flag
-    obj.windDir=(!obj.windDirVrb&&dd!=='//') ? parseInt(dd,10)*10 : null;
-    obj.windSpd=(ff!=='//') ? parseInt(ff,10) : null;
-    obj.windCalm=(obj.windDir===0&&obj.windSpd===0);
-    // 00fff wind extension
-    if(ti<tok.length&&/^00\d{3}$/.test(tok[ti])) obj.windSpd=parseInt(tok[ti++].slice(2),10);
-    // Convert m/s → kt (round to nearest knot)
-    if(isMps&&obj.windSpd!==null) obj.windSpd=Math.round(obj.windSpd*1.944);
-  }
-  // Optional groups; stop at section 333/444/555
-  while(ti<tok.length){
-    const g=tok[ti++];
-    if(g==='333'||g==='444'||g==='555') break;
-    if(/^1[01]\d{3}$/.test(g)){
-      obj.tempC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
-    } else if(/^2[01]\d{3}$/.test(g)){
-      obj.dewC=(g[1]==='0'?1:-1)*parseInt(g.slice(2),10)/10;
-    } else if(/^3\d{4}$/.test(g)){
-      const p=parseInt(g.slice(1),10);
-      obj.staPress=p<5000?(p+10000)/10:p/10;
-    } else if(/^4\d{4}$/.test(g)){
-      const p=parseInt(g.slice(1),10);
-      obj.slp=p<5000?(p+10000)/10:p/10;
+  const DDHHiw   = aaxx[1];
+  const iw       = parseInt(DDHHiw[4], 10);
+  const knotsMode = iw >= 3;
+  const aaxxEnd = flat.indexOf(aaxx[0]) + aaxx[0].length;
+  const dataStr = flat.slice(aaxxEnd).trim();
+  const reportStrings = dataStr.split(/\s*=+\s*/).map(s=>s.trim()).filter(Boolean);
+  const reports = [];
+  reportStrings.forEach(rs=>{
+    const toks = rs.split(/\s+/);
+    if(!/^\d{5}$/.test(toks[0])) return;
+    const stn  = toks[0];
+    const rest = toks.slice(1);
+    if(rest.length === 0 || rest[0] === 'NIL') return;
+    const r    = {stn, raw:rs, P:{}};
+    let idx = 0;
+    const g0 = rest[idx] || '';
+    const looksLikeIRIX = g0.length===5 && /^[0-4\/][1-7]/.test(g0);
+    if(looksLikeIRIX){
+      const h  = g0[2];
+      const vv = g0.slice(3,5);
+      if(h !== '/' && CLOUD_H[h])       r.P.cloud_base_h = CLOUD_H[h];
+      if(vv !== '//' && !/\//.test(vv)) r.P.vis = decodeVV99(vv);
+      idx++;
     }
-  }
-  return obj;
-}
-function parseSynop(rawText){
-  if(!rawText) return{timeStr:null,stations:[]};
-  const clean=rawText.replace(/\r/g,'');
-
-  // ── AAXX (FM 12 land station) ──
-  const aaxxM=clean.match(/\bAAXX\s+(\d\d)(\d\d)(\d)\b/);
-  if(aaxxM){
-    const day=aaxxM[1],hour=aaxxM[2],windInd=parseInt(aaxxM[3],10);
-    const timeStr=`${day}/${hour}00Z`;
-    const section=clean.slice(aaxxM.index+aaxxM[0].length);
-    const recs=section.split('=')
-      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
-      .filter(r=>/^\d{5}\b/.test(r));
-    const stations=recs.map(rec=>{
-      const tok=rec.trim().split(/\s+/);
-      if(!/^\d{5}$/.test(tok[0])) return null;
-      return Object.assign({station:tok[0],raw:rec,timeStr},parseSynopMetGroups(tok,1,windInd));
-    }).filter(Boolean);
-    return{timeStr,stations};
-  }
-
-  // ── BBXX (FM 13 ship / mobile) ──
-  const bbxxM=clean.match(/\bBBXX\b/);
-  if(bbxxM){
-    const section=clean.slice(bbxxM.index+bbxxM[0].length);
-    const recs=section.split('=')
-      .map(r=>r.trim().replace(/[\r\n]+/g,' ').replace(/\s+/g,' '))
-      .filter(r=>r.length>4&&!/^(NNNN|NIL)$/.test(r.trim()));
-    const stations=[];
-    for(const rec of recs){
-      const tok=rec.trim().split(/\s+/);
-      if(tok.length<3) continue;
-      let ti=0;
-      const callSign=tok[ti++];
-      if(!callSign||/^\d{5}$/.test(callSign)){ti=0;} // handle bulletins without call sign
-      let windInd=1,staTimeStr=null;
-      // YYGGI
-      if(ti<tok.length&&/^\d{5}$/.test(tok[ti])){
-        const yg=tok[ti++];
-        windInd=parseInt(yg[4],10);
-        staTimeStr=`${yg.slice(0,2)}/${yg.slice(2,4)}00Z`;
+    const g1 = rest[idx] || '';
+    if(/^[\d\/]{5}$/.test(g1) && g1 !== '/////'){
+      const N  = g1[0]==='/' ? null : parseInt(g1[0],10);
+      const dd = /\//.test(g1.slice(1,3)) ? null : parseInt(g1.slice(1,3),10);
+      const ff = /\//.test(g1.slice(3,5)) ? null : parseInt(g1.slice(3,5),10);
+      if(N !== null){
+        r.P.cloud_oktas = N;
+        r.P.cloud_cover = ['SKC','FEW','FEW','SCT','SCT','BKN','BKN','OVC','OVC','Obsc'][N]||'—';
       }
-      // Skip 99LaLaLa and QcLoLoLoLo
-      if(ti<tok.length&&/^99\d{3}$/.test(tok[ti])) ti++;
-      if(ti<tok.length&&/^[1357]\d{4}$/.test(tok[ti])) ti++;
-      if(ti>=tok.length) continue;
-      const obj=Object.assign({station:callSign,raw:rec,timeStr:staTimeStr},parseSynopMetGroups(tok,ti,windInd));
-      stations.push(obj);
+      if(dd !== null){
+        if(dd===0)       { r.P.wind_dir='Calm'; r.P.wind_dir_deg=0; }
+        else if(dd===99) { r.P.wind_dir='Variable'; }
+        else if(dd>=1 && dd<=36){
+          const raw_deg = dd * 10;
+          const dir_deg = raw_deg % 360 || 360;
+          const COMP    = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+          r.P.wind_dir     = `${dir_deg}° ${COMP[Math.round(dir_deg/22.5)%16]}`;
+          r.P.wind_dir_deg = dir_deg;
+        }
+      }
+      if(ff!==null && ff!==99 && (dd===null || dd===0 || dd===99 || (dd>=1 && dd<=36))){
+        r.P.wind_speed_kn = knotsMode ? ff : Math.round(ff*1.944);
+        r.P.wind_speed_ms = knotsMode ? Math.round(ff/1.944) : ff;
+      }
+      idx++;
+    } else if(g1==='/////') idx++;
+    if((rest[idx]||'').match(/^00\d{3}$/)){
+      const ff2 = parseInt(rest[idx].slice(2),10);
+      r.P.wind_speed_kn = knotsMode ? ff2 : Math.round(ff2*1.944);
+      r.P.wind_speed_ms = knotsMode ? Math.round(ff2/1.944) : ff2;
+      idx++;
     }
-    const timeStr=stations[0]?.timeStr||null;
-    return{timeStr,stations};
-  }
+    const _s1 = rest.slice(idx);
+    const _s1end = _s1.findIndex(g => g==='333' || g==='222' || g==='555');
+    const _sec1 = _s1end === -1 ? _s1 : _s1.slice(0, _s1end);
+    _sec1.forEach(g=>{
+      if(g.length!==5) return;
+      const id=g[0], slash=/\//.test(g);
+      if(id==='1'&&!slash){
+        const s=g[1]==='0'?1:-1, v=parseInt(g.slice(2),10);
+        if(!isNaN(v)) r.P.temp_c=+(s*v/10).toFixed(1);
+      } else if(id==='2'&&!slash){
+        if(g[1]==='9'){ const rh=parseInt(g.slice(2),10); if(!isNaN(rh)&&rh<=100) r.P.rh=rh; }
+        else { const s=g[1]==='0'?1:-1,v=parseInt(g.slice(2),10); if(!isNaN(v)) r.P.dew_c=+(s*v/10).toFixed(1); }
+      } else if(id==='3'&&!slash){
+        const v=parseInt(g.slice(1),10);
+        if(!isNaN(v)){ const p=v/10; r.P.stn_pres=+((p<500?p+1000:p)).toFixed(1); }
+      } else if(id==='4'&&!slash){
+        const v=parseInt(g.slice(1),10);
+        if(!isNaN(v)){ const p=v/10; r.P.slp=+((p<500?p+1000:p)).toFixed(1); }
+      } else if(id==='5'&&!slash){
+        const a=parseInt(g[1],10),ppp=parseInt(g.slice(2),10);
+        const TEND=['Inc then dec','Increasing','Inc slowly','Steady→inc','Steady','Dec then inc','Decreasing','Dec slowly','Steady→dec','Rapid dec'];
+        r.P.tend_type=TEND[a]||`Type ${a}`;
+        if(!isNaN(ppp)) r.P.tend_hPa=+(ppp/10).toFixed(1);
+      } else if(id==='6'&&!slash){
+        const vv=parseInt(g.slice(1,4),10),t=parseInt(g[4],10);
+        r.P.precip_mm=vv>=990?+((vv-990)*0.1).toFixed(1):vv;
+        r.P.precip_period=['6h','12h','18h','24h','1h','2h','3h','9h','15h','—'][t-1]||'—';
+      } else if(id==='7'&&!/\/\//.test(g.slice(1,3))){
+        const ww=parseInt(g.slice(1,3),10);
+        if(!isNaN(ww)){ r.P.ww=ww; r.P.wx_desc=WW[ww]||`Code ${ww}`; }
+      } else if(id==='8'&&!slash){
+        r.P.low_cloud_cover=['SKC','FEW','FEW','SCT','SCT','BKN','BKN','OVC','OVC','—'][parseInt(g[1],10)]||'—';
+        r.P.CL=CL[parseInt(g[3],10)]||'—';
+        r.P.CM=CM[parseInt(g[4],10)]||'—';
+      }
+    });
+    if(r.P.rh===undefined && r.P.temp_c!==undefined && r.P.dew_c!==undefined){
+      const T=r.P.temp_c,Td=r.P.dew_c;
+      r.P.rh=Math.round(100*Math.exp(17.625*Td/(243.04+Td))/Math.exp(17.625*T/(243.04+T)));
+    }
+    const sec3idx = rest.indexOf('333');
+    if(sec3idx !== -1){
+      rest.slice(sec3idx+1).forEach(g=>{
+        if(g.length!==5) return;
+        const id=g[0], slash=/\//.test(g);
+        if(id==='1'&&!slash&&g[1]==='0'){ const v=parseInt(g.slice(2),10); if(!isNaN(v)) r.P.temp_max=+(v/10).toFixed(1); }
+        else if(id==='2'&&!slash&&g[1]==='0'){ const v=parseInt(g.slice(2),10); if(!isNaN(v)) r.P.temp_min=+(v/10).toFixed(1); }
+        else if(id==='3'&&!slash){ r.P.ground_state=g[1]; }
+        else if(id==='4'&&!slash&&g[1]!=='/'){ const v=parseInt(g.slice(2),10); if(!isNaN(v)) r.P.snow_depth=v; }
+        else if(id==='5'&&!slash){ const a=parseInt(g[1],10),ppp=parseInt(g.slice(2),10); if(!isNaN(a)&&r.P.tend_type===undefined){const TEND=['Inc then dec','Increasing','Inc slowly','Steady→inc','Steady','Dec then inc','Decreasing','Dec slowly','Steady→dec','Rapid dec'];r.P.tend_type=TEND[a]||'Type '+a;if(!isNaN(ppp))r.P.tend_hPa=+(ppp/10).toFixed(1);} }
+        else if(id==='6'&&!slash){ const vv=parseInt(g.slice(1,4),10),t=parseInt(g[4],10); r.P.precip_mm=vv>=990?+((vv-990)*0.1).toFixed(1):vv; r.P.precip_period=['6h','12h','18h','24h','1h','2h','3h','9h','15h','—'][t-1]||'—'; }
+        else if(id==='7'&&!slash){ const vv=parseInt(g.slice(1,4),10); if(!isNaN(vv)&&vv<990) r.P.precip_24h=vv; }
+        else if(id==='8'&&!slash){
+          r.P.low_cloud_cover=['SKC','FEW','FEW','SCT','SCT','BKN','BKN','OVC','OVC','—'][parseInt(g[1],10)]||'—';
+          r.P.CL=CL[parseInt(g[3],10)]||'—'; r.P.CM=CM[parseInt(g[4],10)]||'—';
+        }
+      });
+    }
+    reports.push(r);
+  });
+  return {bulletinTime, bulletinType, knotsMode, reports, raw:text};
+}
 
-  return{timeStr:null,stations:[]};
+function synopMetricTile(lbl,val,opts){
+  opts=opts||{};
+  if(val==null||val==='') val='—';
+  const col=opts.col?`style="color:${opts.col}"`:'';
+  const span=opts.full?' style="grid-column:1/-1"':'';
+  const valCls=opts.wrap?' style="white-space:normal;font-size:11px;'+(opts.col?`color:${opts.col};`:'')+'"':(opts.col?` style="color:${opts.col}"`:'');
+  return `<div class="synop-m"${span}><div class="synop-m-lbl">${lbl}</div><div class="synop-m-val"${valCls}>${val}</div></div>`;
+}
+
+function makeSynopCard(rep,bulletinTime){
+  const P=rep.P;
+  const spdKt=(P.wind_speed_kn!=null)?P.wind_speed_kn:null;
+  const isCalm=(P.wind_dir==='Calm')||(spdKt===0);
+  const dirDeg=(P.wind_dir_deg!=null&&P.wind_dir_deg>0)?P.wind_dir_deg:null;
+  const wCol=windSpeedColor(isCalm?0:spdKt);
+  const accentCol=wCol==='inherit'?'var(--accent-strong)':wCol;
+
+  // Wind label
+  let windLabel='—';
+  if(isCalm) windLabel='CALM';
+  else if(P.wind_dir==='Variable') windLabel=spdKt!=null?`VRB / ${spdKt}kt`:'VRB';
+  else if(P.wind_dir!=null) windLabel=spdKt!=null?`${P.wind_dir} / ${spdKt}kt`:P.wind_dir;
+  else if(spdKt!=null) windLabel=`${spdKt}kt`;
+
+  // Rose
+  const roseSvg=(dirDeg!=null&&!isCalm&&spdKt!=null)
+    ?windRoseSvg(dirDeg,spdKt)
+    :`<svg class="wind-rose" viewBox="0 0 52 52"><circle cx="26" cy="26" r="20" fill="none" stroke="rgba(85,193,255,0.15)" stroke-width="1.5"/><text x="26" y="30" text-anchor="middle" fill="rgba(200,225,255,0.3)" font-size="9">${isCalm?'CALM':'VRB'}</text></svg>`;
+
+  // Derived display strings
+  const visLow=synopVisIsLow(P.vis);
+  const visCol=visLow?'#ff8080':'#d0e8ff';
+  let coverStr='—';
+  if(P.cloud_cover){coverStr=P.cloud_cover;if(P.cloud_oktas!=null)coverStr+=` ${P.cloud_oktas}/8`;}
+  const tCol=(P.temp_c!=null)?tempColorCode(P.temp_c):'#d0e8ff';
+  const tempStr=(P.temp_c!=null)?`${P.temp_c.toFixed(1)}°C`:'—';
+  const dewStr=(P.dew_c!=null)?`${P.dew_c.toFixed(1)}°C`:'—';
+  const rhStr=(P.rh!=null)?`${P.rh}%`:'—';
+  const slpStr=(P.slp!=null)?`${P.slp.toFixed(1)} hPa`:'—';
+  const presStr=(P.stn_pres!=null)?`${P.stn_pres.toFixed(1)} hPa`:'—';
+  let rainStr='—';
+  if(P.precip_mm!=null){rainStr=`${P.precip_mm} mm`;if(P.precip_period&&P.precip_period!=='—')rainStr+=` / ${P.precip_period}`;}
+  const maxTStr=(P.temp_max!=null)?`${P.temp_max.toFixed(1)}°C`:'—';
+  const minTStr=(P.temp_min!=null)?`${P.temp_min.toFixed(1)}°C`:'—';
+  const maxTCol=(P.temp_max!=null)?tempColorCode(P.temp_max):'#d0e8ff';
+  const minTCol=(P.temp_min!=null)?tempColorCode(P.temp_min):'#d0e8ff';
+  let tendStr='—';
+  if(P.tend_type){tendStr=P.tend_type;if(P.tend_hPa!=null)tendStr+=` (${P.tend_hPa})`;}
+  // Cloud detail line: base height + low/mid cloud types
+  const cloudBits=[];
+  if(P.cloud_base_h) cloudBits.push(`Base ${P.cloud_base_h}`);
+  if(P.CL&&P.CL!=='—') cloudBits.push(`Low: ${P.CL}`);
+  if(P.CM&&P.CM!=='—') cloudBits.push(`Mid: ${P.CM}`);
+  const cloudStr=cloudBits.length?cloudBits.join(' · '):'—';
+
+  const card=document.createElement('div');
+  card.className='synop-card';
+  card.style.setProperty('--card-accent',accentCol);
+  card.innerHTML=`
+    <div class="synop-card-hdr">
+      <span class="synop-card-id">${rep.stn}</span>
+      <span class="synop-card-time">${bulletinTime||''}</span>
+    </div>
+    <div class="synop-card-wind-row">
+      ${roseSvg}
+      <div style="flex:1;min-width:0;">
+        <div class="synop-m-lbl">WIND</div>
+        <div style="font-size:13px;font-weight:700;color:${wCol};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${windLabel}</div>
+      </div>
+    </div>
+    <div class="synop-metrics-grid">
+      ${synopMetricTile('VIS',P.vis,{col:visLow?visCol:null})}
+      ${synopMetricTile('COVER',coverStr)}
+      ${synopMetricTile('TEMP',tempStr,{col:P.temp_c!=null?tCol:null})}
+      ${synopMetricTile('DEW',dewStr)}
+      ${synopMetricTile('RH',rhStr)}
+      ${synopMetricTile('SLP',slpStr)}
+      ${synopMetricTile('STN PRES',presStr)}
+      ${synopMetricTile('RAIN',rainStr)}
+      ${synopMetricTile('TEND',tendStr)}
+      ${synopMetricTile('MAX T',maxTStr,{col:P.temp_max!=null?maxTCol:null})}
+      ${synopMetricTile('MIN T',minTStr,{col:P.temp_min!=null?minTCol:null})}
+      ${synopMetricTile('WX',P.wx_desc,{full:true,wrap:true})}
+      ${synopMetricTile('CLOUD',cloudStr,{full:true,wrap:true})}
+    </div>`;
+  return card;
 }
 
 function renderSynopRow(index,rawText){
-  const bltRow=synopTbody.querySelector(`.synop-blt-row[data-idx="${index}"]`);
-  const rawRow=synopTbody.querySelector(`.synop-raw-row[data-idx="${index}"]`);
-  if(!bltRow||!rawRow) return;
-  synopTbody.querySelectorAll(`.synop-obs-row[data-blt="${index}"]`).forEach(r=>r.remove());
-  rawRow.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(rawText);
-  const parsed=parseSynop(rawText);
-  const timeEl=bltRow.querySelector('.synop-blt-time');
-  if(timeEl&&parsed.timeStr) timeEl.textContent=parsed.timeStr;
-  const obsToInsert=[];
-  if(parsed.stations.length===0){
-    const tr=document.createElement('tr');
-    tr.className='synop-obs-row'; tr.dataset.blt=String(index);
-    tr.innerHTML=`<td colspan="7" style="color:var(--muted);font-size:12px;padding:8px 18px;">No decoded observations — click Raw ▾ to see bulletin</td>`;
-    obsToInsert.push(tr);
+  const section=synopTbody.querySelector(`.synop-blt-section[data-idx="${index}"]`);
+  if(!section) return;
+  section.querySelector('.synop-raw').textContent=sanitizeTextForDisplay(rawText);
+  const cardsGrid=section.querySelector('.synop-cards-grid');
+  cardsGrid.innerHTML='';
+  const decoded=decodeSynopText(rawText);
+  const timeEl=section.querySelector('.synop-blt-time');
+  if(timeEl&&decoded.bulletinTime) timeEl.textContent=decoded.bulletinTime;
+  if(!decoded.reports.length){
+    cardsGrid.innerHTML=decoded.nil
+      ?`<p style="color:var(--muted);font-size:12px;padding:4px 2px;">Bulletin reports NIL — no observations available.</p>`
+      :`<p style="color:var(--muted);font-size:12px;padding:4px 2px;">No decoded observations — click Raw ▾ to inspect the bulletin.</p>`;
   } else {
-    for(const sta of parsed.stations){
-      const tr=document.createElement('tr');
-      tr.className='synop-obs-row'; tr.dataset.blt=String(index);
-      // Wind
-      let windStr='—';
-      if(sta.windSpd!==null&&sta.windSpd!==undefined){
-        if(sta.windCalm){
-          windStr='CALM';
-        } else {
-          const dir=sta.windDirVrb?'VRB':(sta.windDir!==null?`${String(sta.windDir).padStart(3,'0')}°`:'///');
-          windStr=`${dir} ${sta.windSpd}${sta.windUnit}`;
-        }
-      }
-      const visStr=sta.vis||'—';
-      const visLow=synopVisIsLow(sta.vis);
-      let cloudStr='—';
-      if(sta.cloudCover){cloudStr=sta.cloudCover;if(sta.cloudHt)cloudStr+=` ${sta.cloudHt}`;}
-      let tempStr='—';
-      if(sta.tempC!==undefined){
-        tempStr=`${sta.tempC.toFixed(1)}°`;
-        if(sta.dewC!==undefined) tempStr+=` / ${sta.dewC.toFixed(1)}°`;
-      }
-      const slpStr=(sta.slp!==undefined)?sta.slp.toFixed(1):'—';
-      const tCol=(sta.tempC!==undefined)?tempColorCode(sta.tempC):'#d0e8ff';
-      const spdKt=sta.windCalm?0:(sta.windSpd!==null&&sta.windSpd!==undefined)?sta.windSpd:null;
-      const wCol=windSpeedColor(spdKt);
-      const visCol=visLow?'#ff8080':'inherit';
-      tr.innerHTML=`
-        <td class="synop-stn">${sta.station}</td>
-        <td class="synop-obs-time">${sta.timeStr||parsed.timeStr||'—'}</td>
-        <td class="synop-obs-wind" style="color:${wCol}">${windStr}</td>
-        <td class="synop-obs-vis" style="color:${visCol}">${visStr}</td>
-        <td class="synop-obs-cloud">${cloudStr}</td>
-        <td class="synop-obs-temp" style="color:${tCol}">${tempStr}</td>
-        <td class="synop-obs-slp">${slpStr}</td>`;
-      obsToInsert.push(tr);
+    for(const rep of decoded.reports){
+      cardsGrid.appendChild(makeSynopCard(rep,decoded.bulletinTime));
     }
   }
-  obsToInsert.forEach(tr=>synopTbody.insertBefore(tr,rawRow));
 }
 
 function buildSynopTable(){
   synopTbody.innerHTML='';
   const names=['TNCA SINU50','TNCA SMNU50','TNCC SI','TNCC SM'];
   names.forEach((name,i)=>{
-    const hdr=document.createElement('tr');
-    hdr.className='synop-blt-row';hdr.dataset.idx=String(i);
-    hdr.innerHTML=`<td colspan="7" class="synop-blt-cell"><span class="station">${name}</span><span class="synop-blt-time"></span><button class="synop-raw-btn" data-idx="${i}">Raw ▾</button></td>`;
-    synopTbody.appendChild(hdr);
-    const rawRow=document.createElement('tr');
-    rawRow.className='synop-raw-row hidden';rawRow.dataset.idx=String(i);
-    rawRow.innerHTML=`<td colspan="7"><div class="synop-raw"></div></td>`;
-    synopTbody.appendChild(rawRow);
+    const sec=document.createElement('div');
+    sec.className='synop-blt-section'; sec.dataset.idx=String(i);
+    sec.innerHTML=`
+      <div class="synop-blt-header">
+        <span class="station">${name}</span>
+        <span class="synop-blt-time"></span>
+        <button class="synop-raw-btn" data-idx="${i}">Raw ▾</button>
+      </div>
+      <div class="synop-cards-grid"></div>
+      <div class="synop-raw-row hidden"><div class="synop-raw"></div></div>`;
+    synopTbody.appendChild(sec);
   });
   synopTbody.addEventListener('click',e=>{
     const btn=e.target.closest('.synop-raw-btn');
     if(!btn) return;
-    const rawRow=synopTbody.querySelector(`.synop-raw-row[data-idx="${btn.dataset.idx}"]`);
-    if(!rawRow) return;
+    const sec=synopTbody.querySelector(`.synop-blt-section[data-idx="${btn.dataset.idx}"]`);
+    if(!sec) return;
+    const rawRow=sec.querySelector('.synop-raw-row');
     rawRow.classList.toggle('hidden');
     btn.textContent=rawRow.classList.contains('hidden')?'Raw ▾':'Raw ▴';
   });
