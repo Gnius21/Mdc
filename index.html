@@ -436,7 +436,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   font-family:var(--mono);font-size:12px;color:rgba(200,225,255,0.8);
   white-space:pre-wrap;word-break:break-word;line-height:1.65;letter-spacing:0.3px;
 }
-.synop-blt-section{margin-bottom:4px;}
+.synop-group{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;align-items:start;}
+@media(max-width:760px){.synop-group{grid-template-columns:1fr;gap:8px;}}
+.synop-blt-section{margin-bottom:4px;min-width:0;}
 .synop-blt-header{
   display:flex;align-items:center;gap:10px;flex-wrap:wrap;
   padding:8px 14px;
@@ -2322,18 +2324,26 @@ function renderSynopRow(index,rawText){
 function buildSynopTable(){
   synopTbody.innerHTML='';
   const names=['TNCA SINU50','TNCA SMNU50','TNCC SI','TNCC SM'];
-  names.forEach((name,i)=>{
-    const sec=document.createElement('div');
-    sec.className='synop-blt-section'; sec.dataset.idx=String(i);
-    sec.innerHTML=`
-      <div class="synop-blt-header">
-        <span class="station">${name}</span>
-        <span class="synop-blt-time"></span>
-        <button class="synop-raw-btn" data-idx="${i}">Raw ▾</button>
-      </div>
-      <div class="synop-cards-grid"></div>
-      <div class="synop-raw-row hidden"><div class="synop-raw"></div></div>`;
-    synopTbody.appendChild(sec);
+  // Group bulletins by location so the two TNCA reports sit side by side,
+  // and likewise the two TNCC reports.
+  const groups=[[0,1],[2,3]];
+  groups.forEach(pair=>{
+    const grp=document.createElement('div');
+    grp.className='synop-group';
+    pair.forEach(i=>{
+      const sec=document.createElement('div');
+      sec.className='synop-blt-section'; sec.dataset.idx=String(i);
+      sec.innerHTML=`
+        <div class="synop-blt-header">
+          <span class="station">${names[i]}</span>
+          <span class="synop-blt-time"></span>
+          <button class="synop-raw-btn" data-idx="${i}">Raw ▾</button>
+        </div>
+        <div class="synop-cards-grid"></div>
+        <div class="synop-raw-row hidden"><div class="synop-raw"></div></div>`;
+      grp.appendChild(sec);
+    });
+    synopTbody.appendChild(grp);
   });
   synopTbody.addEventListener('click',e=>{
     const btn=e.target.closest('.synop-raw-btn');
