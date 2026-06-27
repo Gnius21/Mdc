@@ -978,7 +978,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <div id="knmiStatus" class="knmi-status">Loading live KNMI Bonaire observations…</div>
         <div id="knmiFeels" class="knmi-feels hidden"></div>
         <div id="knmiGrid" class="knmi-grid"></div>
-        <div class="knmi-charts-head">Trends · 6h history → now → 6h forecast <span class="knmi-charts-sub">(model: Open-Meteo · ◆ = live KNMI obs)</span></div>
+        <div class="knmi-charts-head">Trends · 6h recorded history → now → 6h forecast <span class="knmi-charts-sub">(observed = recorded hourly · forecast = KNMI HARMONIE · ◆ live obs)</span></div>
         <div id="knmiCharts" class="knmi-charts"></div>
       </div>
     </div>
@@ -1536,6 +1536,7 @@ async function loadKnmiData(force){
 
     knmiToNormalized(parsed, resp.stale ? resp.cachedAt : null);
     propagateKnmi();
+    if(!resp.stale) recordKnmiSample(); // log this hour's real observation
 
     var html = buildKnmiGridHtml(parsed);
     if(!html) throw new Error('no fields parsed (page format may have changed)');
@@ -1608,44 +1609,86 @@ function renderKnmiFeels(){
     '</div>';
 }
 
-/* ── KNMI TREND CHARTS (Open-Meteo: 6h back · now · 6h forecast) ── */
+/* ── KNMI TREND CHARTS ──
+   Past 6h  = real KNMI observations recorded hourly to localStorage.
+   Forecast = KNMI HARMONIE model (via Open-Meteo), falling back to the
+   best-available model where HARMONIE doesn't cover the Caribbean. */
 const KNMI_LAT = 12.13, KNMI_LON = -68.27; // Bonaire (Flamingo)
+const KNMI_HIST_KEY = 'knmi-history-v1';
+
 async function fetchJsonWithFallback(url){
   try{ const r=await fetchWithTimeout(url,8000); if(r&&r.ok){ const j=await r.json(); if(j) return j; } }catch(e){}
   try{ const r=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(url),9000); if(r&&r.ok){ const j=await r.json(); if(j) return j; } }catch(e){}
   return null;
 }
-/* Build one mini line chart. cfg: {title,unit,color,times[],values[],nowIdx,actual} */
+
+/* Recorded observation history (one sample per clock hour, kept ~8h) */
+function getKnmiHistory(){
+  try{ return (JSON.parse(localStorage.getItem(KNMI_HIST_KEY))||[]).sort(function(a,b){return a.hb-b.hb;}); }
+  catch(e){ return []; }
+}
+function recordKnmiSample(){
+  const n=window.__knmiData;
+  if(!n || n.temp_c==null) return;
+  const hb=Math.floor(Date.now()/3600000); // hour bucket
+  let hist=getKnmiHistory().filter(function(s){return s.hb!==hb;}); // replace current hour
+  hist.push({
+    hb:hb, ts:Date.now(),
+    temp_c:n.temp_c, dew_c:n.dew_c, rh:n.rh,
+    wind_kt:n.wind_kt, gust_kt:n.gust_kt, slp:n.slp,
+    cloud:(n.cloud_octa!=null?n.cloud_octa*12.5:null), precip:n.precip_10m,
+    feels:heatIndexC(n.temp_c,n.rh)
+  });
+  const cutoff=hb-8;
+  hist=hist.filter(function(s){return s.hb>=cutoff;}).sort(function(a,b){return a.hb-b.hb;});
+  try{ localStorage.setItem(KNMI_HIST_KEY, JSON.stringify(hist)); }catch(e){}
+}
+
+/* Fetch Open-Meteo hourly for a given model (empty = best-available). */
+async function fetchOpenMeteoHourly(model){
+  const url='https://api.open-meteo.com/v1/forecast?latitude='+KNMI_LAT+'&longitude='+KNMI_LON+
+    '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m'+
+    '&forecast_days=2&timezone=UTC&wind_speed_unit=kn'+(model?('&models='+model):'');
+  const j=await fetchJsonWithFallback(url);
+  return (j&&j.hourly&&j.hourly.time)?j.hourly:null;
+}
+function hourlyHasData(H){
+  if(!H) return false;
+  return ['temperature_2m','surface_pressure','wind_speed_10m'].some(function(k){
+    return Array.isArray(H[k]) && H[k].some(function(v){return v!=null&&isFinite(v);});
+  });
+}
+
+/* Build one mini line chart. cfg: {title,unit,color,obs[],fc[],nowIdx,actual} */
 function knmiChartSvg(cfg){
   const W=300,H=120,padL=34,padR=10,padT=20,padB=18;
   const iw=W-padL-padR, ih=H-padT-padB;
-  const vals=cfg.values, n=vals.length;
-  const finite=vals.filter(v=>v!=null && isFinite(v));
-  if(!finite.length) return '';
-  let vmin=Math.min.apply(null,finite), vmax=Math.max.apply(null,finite);
-  if(cfg.actual!=null && isFinite(cfg.actual)){ vmin=Math.min(vmin,cfg.actual); vmax=Math.max(vmax,cfg.actual); }
-  if(vmax-vmin < 1e-6){ vmax+=1; vmin-=1; }
+  const obs=cfg.obs||[], fc=cfg.fc||[];
+  const n=Math.max(obs.length,fc.length);
+  const all=obs.concat(fc).filter(function(v){return v!=null&&isFinite(v);});
+  if(cfg.actual!=null&&isFinite(cfg.actual)) all.push(cfg.actual);
+  if(!all.length) return '';
+  let vmin=Math.min.apply(null,all), vmax=Math.max.apply(null,all);
+  if(vmax-vmin<1e-6){ vmax+=1; vmin-=1; }
   const pad=(vmax-vmin)*0.12; vmin-=pad; vmax+=pad;
-  const x=i=> padL + (n<=1?0:(i/(n-1))*iw);
-  const y=v=> padT + (1-(v-vmin)/(vmax-vmin))*ih;
-  // split past (solid) / future (dashed) at nowIdx
-  function pathFor(a,b){
-    let d='',started=false;
-    for(let i=a;i<=b;i++){ const v=vals[i]; if(v==null||!isFinite(v)){started=false;continue;}
-      d += (started?'L':'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1) + ' '; started=true; }
+  const x=i=> padL+(n<=1?0:(i/(n-1))*iw);
+  const y=v=> padT+(1-(v-vmin)/(vmax-vmin))*ih;
+  function pathFor(arr){
+    let d='',st=false;
+    for(let i=0;i<arr.length;i++){ const v=arr[i]; if(v==null||!isFinite(v)){st=false;continue;}
+      d+=(st?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; st=true; }
     return d.trim();
   }
-  const ni=cfg.nowIdx;
-  const pastD=pathFor(0,ni), futD=pathFor(ni,n-1);
+  const obsD=pathFor(obs), fcD=pathFor(fc);
+  const ni=cfg.nowIdx!=null?cfg.nowIdx:6;
   const nowX=x(ni).toFixed(1);
-  const cur = (vals[ni]!=null&&isFinite(vals[ni]))? vals[ni] : null;
-  let dots='';
-  if(cfg.actual!=null && isFinite(cfg.actual)){
-    dots += `<circle cx="${nowX}" cy="${y(cfg.actual).toFixed(1)}" r="3.4" fill="#fff" stroke="${cfg.color}" stroke-width="1.5"/>`;
-    dots += `<path d="M${nowX-3.6} ${(y(cfg.actual)).toFixed(1)} l3.6 -4 l3.6 4 l-3.6 4 z" fill="${cfg.color}" opacity="0.9"/>`;
-  }
   const fmt=v=> Math.abs(v)>=100? v.toFixed(0) : v.toFixed(1);
-  const curStr = cur!=null? fmt(cur)+(cfg.unit?cfg.unit:'') : '—';
+  let dots='';
+  if(cfg.actual!=null&&isFinite(cfg.actual)){
+    const ay=y(cfg.actual).toFixed(1);
+    dots+=`<path d="M${(parseFloat(nowX)-4).toFixed(1)} ${ay} l4 -4.6 l4 4.6 l-4 4.6 z" fill="${cfg.color}" stroke="#0a1428" stroke-width="0.8"/>`;
+  }
+  const curStr = cfg.actual!=null&&isFinite(cfg.actual)? fmt(cfg.actual)+(cfg.unit||'') : '—';
   return `<div class="knmi-chart">
     <div class="knmi-chart-hd"><span class="knmi-chart-title">${cfg.title}</span><span class="knmi-chart-cur" style="color:${cfg.color}">${curStr}</span></div>
     <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="knmi-chart-svg">
@@ -1657,52 +1700,69 @@ function knmiChartSvg(cfg){
       <text x="${nowX}" y="${(padT-7).toFixed(1)}" class="knmi-ax-now" text-anchor="middle">now</text>
       <text x="${padL}" y="${(H-5).toFixed(1)}" class="knmi-ax">-6h</text>
       <text x="${(W-padR).toFixed(1)}" y="${(H-5).toFixed(1)}" class="knmi-ax" text-anchor="end">+6h</text>
-      ${pastD?`<path d="${pastD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
-      ${futD?`<path d="${futD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`:''}
+      ${obsD?`<path d="${obsD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+      ${fcD?`<path d="${fcD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`:''}
       ${dots}
     </svg>
   </div>`;
 }
+
 async function loadKnmiCharts(){
   const wrap = byId('knmiCharts');
   if(!wrap) return;
-  if(!wrap.dataset.loaded) wrap.innerHTML = '<div class="knmi-charts-loading">Loading trend charts…</div>';
-  const url='https://api.open-meteo.com/v1/forecast?latitude='+KNMI_LAT+'&longitude='+KNMI_LON+
-    '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m'+
-    '&past_days=1&forecast_days=2&timezone=UTC&wind_speed_unit=kn';
-  const j = await fetchJsonWithFallback(url);
-  if(!j || !j.hourly || !j.hourly.time){
-    if(!wrap.dataset.loaded) wrap.innerHTML = '<div class="knmi-charts-loading">Trend charts unavailable (forecast service unreachable).</div>';
-    return;
-  }
-  const H=j.hourly;
-  const times=H.time.map(t=>Date.parse(t+':00Z'));
-  const now=Date.now();
-  let nowIdx=0,best=Infinity;
-  times.forEach((t,i)=>{ const d=Math.abs(t-now); if(d<best){best=d;nowIdx=i;} });
-  const a=Math.max(0,nowIdx-6), b=Math.min(times.length-1,nowIdx+6);
-  const sliceNow=nowIdx-a;
-  const sl=arr=> arr? arr.slice(a,b+1) : [];
+  if(!wrap.dataset.loaded) wrap.innerHTML = '<div class="knmi-charts-loading">Loading KNMI HARMONIE forecast…</div>';
+
+  // Forecast: KNMI HARMONIE first; fall back to global best-available where it
+  // doesn't reach the Dutch Caribbean.
+  let Hf=await fetchOpenMeteoHourly('knmi_seamless'); let src='KNMI HARMONIE';
+  if(!hourlyHasData(Hf)){ Hf=await fetchOpenMeteoHourly('knmi_harmonie_arome_netherlands'); src='KNMI HARMONIE'; }
+  if(!hourlyHasData(Hf)){ Hf=await fetchOpenMeteoHourly(''); src='best-available model (HARMONIE outside Caribbean)'; }
+  const haveFc=hourlyHasData(Hf);
+  const fcIdxByHb={};
+  if(haveFc){ Hf.time.forEach(function(s,i){ fcIdxByHb[Math.floor(Date.parse(s+':00Z')/3600000)]=i; }); }
+
+  const nowH=Math.floor(Date.now()/3600000);
+  const offsets=[]; for(let o=-6;o<=6;o++) offsets.push(o);
+  const hist=getKnmiHistory(); const histMap={}; hist.forEach(function(s){ histMap[s.hb]=s; });
   const n=window.__knmiData||{};
-  const cloudActual = n.cloud_octa!=null ? Math.round(n.cloud_octa*12.5) : null;
+  const nowObs={
+    temp_c:n.temp_c, feels:heatIndexC(n.temp_c,n.rh), dew_c:n.dew_c, rh:n.rh,
+    wind_kt:n.wind_kt, gust_kt:n.gust_kt, slp:n.slp,
+    cloud:(n.cloud_octa!=null?n.cloud_octa*12.5:null), precip:n.precip_10m
+  };
   const charts=[
-    {title:'Temperature', unit:'°C', color:'#ff9d5c', key:'temperature_2m',       actual:n.temp_c},
-    {title:'Feels Like',  unit:'°C', color:'#ff6b6b', key:'apparent_temperature', actual:heatIndexC(n.temp_c,n.rh)},
-    {title:'Dew Point',   unit:'°C', color:'#5ad1a0', key:'dew_point_2m',          actual:n.dew_c},
-    {title:'Humidity',    unit:'%',  color:'#4fb6ff', key:'relative_humidity_2m',  actual:n.rh},
-    {title:'Wind Speed',  unit:'kt', color:'#9d8cff', key:'wind_speed_10m',        actual:n.wind_kt},
-    {title:'Gusts',       unit:'kt', color:'#c08cff', key:'wind_gusts_10m',        actual:n.gust_kt},
-    {title:'Pressure',    unit:'hPa',color:'#7aa7ff', key:'surface_pressure',      actual:n.slp},
-    {title:'Cloud Cover', unit:'%',  color:'#9fb4cc', key:'cloud_cover',           actual:cloudActual},
-    {title:'Precip',      unit:'mm', color:'#4fc3f7', key:'precipitation',         actual:n.precip_10m}
+    {title:'Temperature',unit:'°C', color:'#ff9d5c', hk:'temp_c', fk:'temperature_2m'},
+    {title:'Feels Like', unit:'°C', color:'#ff6b6b', hk:'feels',  fk:'apparent_temperature'},
+    {title:'Dew Point',  unit:'°C', color:'#5ad1a0', hk:'dew_c',  fk:'dew_point_2m'},
+    {title:'Humidity',   unit:'%',  color:'#4fb6ff', hk:'rh',     fk:'relative_humidity_2m'},
+    {title:'Wind Speed', unit:'kt', color:'#9d8cff', hk:'wind_kt',fk:'wind_speed_10m'},
+    {title:'Gusts',      unit:'kt', color:'#c08cff', hk:'gust_kt',fk:'wind_gusts_10m'},
+    {title:'Pressure',   unit:'hPa',color:'#7aa7ff', hk:'slp',    fk:'surface_pressure'},
+    {title:'Cloud Cover',unit:'%',  color:'#9fb4cc', hk:'cloud',  fk:'cloud_cover'},
+    {title:'Precip',     unit:'mm', color:'#4fc3f7', hk:'precip', fk:'precipitation'}
   ];
   let out='';
-  charts.forEach(c=>{
-    const vals=sl(H[c.key]);
-    if(!vals.length) return;
-    out += knmiChartSvg({title:c.title,unit:c.unit,color:c.color,values:vals,nowIdx:sliceNow,actual:c.actual});
+  charts.forEach(function(c){
+    const obs=[], fc=[];
+    offsets.forEach(function(o){
+      const hb=nowH+o;
+      // Observed line: recorded history for the past, current obs for "now".
+      let ov=null;
+      if(o<0){ const s=histMap[hb]; ov = s? s[c.hk] : null; }
+      else if(o===0){ ov = (nowObs[c.hk]!=null)? nowObs[c.hk] : (histMap[hb]? histMap[hb][c.hk] : null); }
+      obs.push(ov!=null&&isFinite(ov)?ov:null);
+      // Forecast line: HARMONIE from now forward.
+      let fv=null;
+      if(o>=0 && haveFc){ const i=fcIdxByHb[hb]; if(i!=null){ const arr=Hf[c.fk]; fv = arr? arr[i] : null; } }
+      fc.push(fv!=null&&isFinite(fv)?fv:null);
+    });
+    out += knmiChartSvg({title:c.title,unit:c.unit,color:c.color,obs:obs,fc:fc,nowIdx:6,actual:nowObs[c.hk]});
   });
-  wrap.innerHTML = out || '<div class="knmi-charts-loading">No trend data returned.</div>';
+
+  const subEl=document.querySelector('.knmi-charts-head .knmi-charts-sub');
+  if(subEl) subEl.textContent='(observed = recorded hourly · forecast = '+src+' · ◆ live obs)';
+  const recorded=hist.filter(function(s){return s.hb<nowH;}).length;
+  wrap.innerHTML = out || ('<div class="knmi-charts-loading">Building history… '+recorded+'h of observations recorded so far. The past-6h line fills in one point per hour as the page stays open / is revisited.</div>');
   wrap.dataset.loaded='1';
 }
 
