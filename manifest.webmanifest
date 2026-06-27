@@ -1,0 +1,17 @@
+{
+  "name": "Regional Weather Centre",
+  "short_name": "RWC Weather",
+  "description": "METAR / TAF / SYNOP and KNMI Bonaire weather dashboard for the Dutch Caribbean.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020d18",
+  "theme_color": "#020d18",
+  "categories": ["weather", "utilities"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
