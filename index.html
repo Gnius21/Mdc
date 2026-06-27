@@ -769,6 +769,53 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .wb-time{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;}
 @media(max-width:560px){.wb-item .v{font-size:13px;}.wb-items{gap:6px 12px;}}
 
+/* ── SETTINGS MODAL ── */
+.settings-overlay{
+  position:fixed;inset:0;z-index:1000;
+  background:rgba(2,8,18,0.72);backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+.settings-overlay.hidden{display:none;}
+.settings-panel{
+  width:100%;max-width:440px;max-height:90vh;overflow:auto;
+  background:linear-gradient(160deg,rgba(10,28,54,0.98),rgba(5,16,34,0.98));
+  border:1px solid rgba(85,193,255,0.25);border-radius:16px;
+  box-shadow:0 24px 60px rgba(0,0,0,0.6);
+}
+.settings-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px;border-bottom:1px solid rgba(85,193,255,0.16);
+  font-family:var(--cond);font-weight:800;font-size:16px;letter-spacing:0.8px;color:var(--accent);
+}
+.settings-x{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:4px 6px;border-radius:6px;}
+.settings-x:hover{background:rgba(255,255,255,0.06);color:var(--text);}
+.settings-body{padding:8px 18px 14px;}
+.set-section{
+  font-family:var(--cond);font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--accent-strong);margin:14px 0 6px;padding-bottom:5px;border-bottom:1px solid rgba(85,193,255,0.1);
+}
+.set-row{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+  padding:9px 0;cursor:pointer;
+}
+.set-lbl{font-size:13px;color:#d0e8ff;}
+.set-ctl{flex-shrink:0;}
+.set-num,.set-range{display:inline-flex;align-items:center;gap:7px;}
+.set-num em,.set-range em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted);min-width:30px;}
+.settings-body input[type=number],.settings-body select{
+  background:rgba(5,16,36,0.9);border:1px solid rgba(85,193,255,0.25);border-radius:7px;
+  color:#d0e8ff;font-family:var(--mono);font-size:14px;padding:6px 9px;width:84px;
+}
+.settings-body select{width:130px;cursor:pointer;}
+.settings-body input[type=number]:focus,.settings-body select:focus{outline:none;border-color:var(--accent);}
+.settings-body input[type=range]{accent-color:var(--accent);width:120px;cursor:pointer;}
+.set-chk{width:20px;height:20px;accent-color:var(--accent-strong);cursor:pointer;flex-shrink:0;}
+.settings-foot{
+  display:flex;align-items:center;gap:8px;
+  padding:14px 18px;border-top:1px solid rgba(85,193,255,0.16);
+}
+@media(max-width:480px){.settings-body input[type=range]{width:90px;}.set-lbl{font-size:12px;}}
+
 /* ── IMPROVED STATION CARDS ── */
 .stations-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;
@@ -908,7 +955,8 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     <div class="controls-wrap" role="toolbar" aria-label="Controls">
       <div class="btn-row">
         <button id="mute-btn" class="btn-ghost" aria-pressed="false">🔊 Mute</button>
-        <button id="notify-btn" class="btn-ghost" aria-pressed="false" title="Browser notifications for the TNCA special alarm">🔔 Notify: Off</button>
+        <button id="notify-btn" class="btn-ghost" aria-pressed="false" title="Browser notifications for the special alarm">🔔 Notify: Off</button>
+        <button id="settings-btn" class="btn-ghost" title="Notification &amp; alarm settings">⚙ Settings</button>
         <button id="test-btn" class="btn-ghost">⚗ Test Mode</button>
         <button id="night-btn" class="btn-ghost" aria-pressed="false" title="Toggle Night Mode">🌙 Night</button>
       </div>
@@ -921,6 +969,43 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
     <span class="wb-title">🇧🇶 Bonaire Now</span>
     <span class="wb-items" id="weatherBarItems"></span>
     <span class="wb-time" id="weatherBarTime"></span>
+  </div>
+
+  <!-- ═══ SETTINGS MODAL ═══ -->
+  <div id="settingsModal" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Notification and alarm settings">
+    <div class="settings-panel">
+      <div class="settings-head">
+        <span>⚙ Notifications &amp; Alarms</span>
+        <button id="settings-close" class="settings-x" aria-label="Close settings">✕</button>
+      </div>
+      <div class="settings-body">
+        <div class="set-section">Special alarm trigger</div>
+        <label class="set-row"><span class="set-lbl">Alarm station</span>
+          <select id="set-station" class="set-ctl"></select></label>
+        <label class="set-row"><span class="set-lbl">Gust threshold</span>
+          <span class="set-ctl set-num"><input id="set-gust" type="number" min="10" max="120" step="1"><em>kt</em></span></label>
+        <label class="set-row"><span class="set-lbl">Require thunderstorm (TS/TSRA)</span>
+          <input id="set-ts" type="checkbox" class="set-chk"></label>
+        <label class="set-row"><span class="set-lbl">Low-visibility alert below</span>
+          <span class="set-ctl set-num"><input id="set-vis" type="number" min="0" max="9999" step="100"><em>m</em></span></label>
+
+        <div class="set-section">Sound &amp; notifications</div>
+        <label class="set-row"><span class="set-lbl">Beep on each new METAR</span>
+          <input id="set-beep" type="checkbox" class="set-chk"></label>
+        <label class="set-row"><span class="set-lbl">Alarm sound enabled</span>
+          <input id="set-sound" type="checkbox" class="set-chk"></label>
+        <label class="set-row"><span class="set-lbl">Alarm volume</span>
+          <span class="set-ctl set-range"><input id="set-vol" type="range" min="0" max="100" step="5"><em id="set-vol-val">50%</em></span></label>
+        <label class="set-row"><span class="set-lbl">Browser notifications</span>
+          <input id="set-notify" type="checkbox" class="set-chk"></label>
+      </div>
+      <div class="settings-foot">
+        <button id="set-test" class="btn-ghost" type="button">🔊 Test alarm</button>
+        <span style="flex:1"></span>
+        <button id="set-reset" class="btn-ghost" type="button">Reset</button>
+        <button id="set-save" class="btn-primary" type="button">Save</button>
+      </div>
+    </div>
   </div>
 
   <!-- ═══ TAB BAR ═══ -->
@@ -1094,6 +1179,20 @@ let testMode = false;
 const metarState = {};
 let _windRoseId = 0;
 
+/* ── USER SETTINGS (notifications & alarms) ── */
+const SETTINGS_KEY='rwc-settings-v1';
+const DEFAULT_SETTINGS={
+  alarmStation:'TNCA',  // ICAO that triggers the special alarm, or 'ANY'
+  gustThreshold:35,     // kt
+  requireTS:true,       // also require TS/TSRA in the weather group
+  visAlertM:5000,       // metres — highlight visibility at/below this
+  beepOnUpdate:true,    // soft beep on every new METAR
+  alarmVolume:0.05      // gain 0–0.1
+};
+let SETTINGS=Object.assign({},DEFAULT_SETTINGS);
+try{const _s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(_s&&typeof _s==='object')SETTINGS=Object.assign(SETTINGS,_s);}catch(e){}
+function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(SETTINGS));}catch(e){}}
+
 /* ── UTILS ── */
 function pad(n){ return n < 10 ? '0' + n : '' + n; }
 function formatLocalDateTimeParts(){ const d=new Date(); return { date:`${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`, time:`${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}` }; }
@@ -1111,22 +1210,22 @@ tickClocks();
 setInterval(tickClocks,1000);
 
 /* ── AUDIO ── */
-function playBeep(){
-  if(mute) return;
+function playBeep(force){
+  if(mute&&!force) return;
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const o=ctx.createOscillator(),g=ctx.createGain();
-    o.type='sine';o.frequency.value=880;g.gain.value=0.015;
+    o.type='sine';o.frequency.value=880;g.gain.value=Math.max(0.004,SETTINGS.alarmVolume*0.3);
     o.connect(g);g.connect(ctx.destination);o.start();
     setTimeout(()=>{o.stop();ctx.close();},100);
   }catch(e){}
 }
-function playCriticalAlarm(){
-  if(mute) return;
+function playCriticalAlarm(force){
+  if(mute&&!force) return;
   try{
     const ctx=new(window.AudioContext||window.webkitAudioContext)();
     const now=ctx.currentTime,g=ctx.createGain();
-    g.gain.value=0.05;g.connect(ctx.destination);
+    g.gain.value=Math.max(0.01,SETTINGS.alarmVolume);g.connect(ctx.destination);
     const o1=ctx.createOscillator(),o2=ctx.createOscillator();
     o1.type='sawtooth';o2.type='sine';
     o1.frequency.setValueAtTime(520,now);o2.frequency.setValueAtTime(780,now);
@@ -1138,10 +1237,10 @@ function playCriticalAlarm(){
     setTimeout(()=>{o1.stop();o2.stop();ctx.close();},700);
   }catch(e){}
 }
-/* Special alarm — TNCA gust ≥35kt AND TS/TSRA present. Sounds the critical alarm TWICE. */
-function playSpecialAlarm(){
-  playCriticalAlarm();
-  setTimeout(()=>{playCriticalAlarm();},850);
+/* Special alarm — gust/TS condition met. Sounds the critical alarm TWICE. */
+function playSpecialAlarm(force){
+  playCriticalAlarm(force);
+  setTimeout(()=>{playCriticalAlarm(force);},850);
 }
 
 /* ── BROWSER NOTIFICATIONS ── */
@@ -1167,7 +1266,7 @@ async function toggleNotifications(){
     if(perm==='granted'){
       notificationsEnabled=true;
       try{localStorage.setItem('rwc-notify-enabled','1');}catch(e){}
-      try{new Notification('Regional Weather Centre',{body:'Notifications enabled — you will be alerted on the TNCA special alarm (gust ≥35kt with TS/TSRA).',icon:undefined,silent:false});}catch(e){}
+      try{const st=SETTINGS.alarmStation==='ANY'?'any station':SETTINGS.alarmStation;new Notification('Regional Weather Centre',{body:`Notifications enabled — you will be alerted on the special alarm (${st} gust ≥${SETTINGS.gustThreshold}kt${SETTINGS.requireTS?' with TS/TSRA':''}). Adjust in ⚙ Settings.`,icon:undefined,silent:false});}catch(e){}
     }
   } else {
     notificationsEnabled=false;
@@ -1982,13 +2081,15 @@ function renderMetar(icao,raw){
     const tsPresent=/\b(?:TS|TSRA|VCTS)\b/i.test(parsed.wx);
     const cloudFlag=isCloudGroupWithCbTcu(parsed.cld);
     const wxCritical=setWxCritical(tds[4],parsed.wx);
-    if(isNew){playBeep();markTimeUpdated(icao);pushSessionHistory(icao,state.lastRaw,parsed);}
+    if(isNew&&SETTINGS.beepOnUpdate){playBeep();}
+    if(isNew){markTimeUpdated(icao);pushSessionHistory(icao,state.lastRaw,parsed);}
     if(windHasGust&&isNew)tds[2].classList.add('alert');
-    if(!isNaN(parsed.visMin)&&parsed.visMin<=5000)tds[3].classList.add('alert');
+    if(!isNaN(parsed.visMin)&&parsed.visMin<=SETTINGS.visAlertM)tds[3].classList.add('alert');
     if(wxCritical)tds[4].classList.add('alert');
     if(cloudFlag)tds[5].classList.add('cloud-critical');
-    // ── SPECIAL ALARM ── only TNCA, gust ≥35kt, AND TS/TSRA present. Sounds twice + browser notification.
-    const isSpecialAlarmCondition=(icao==='TNCA'&&gustValue>=35&&tsPresent);
+    // ── SPECIAL ALARM ── configurable: station + gust threshold + optional TS. Sounds twice + browser notification.
+    const stationMatch=(SETTINGS.alarmStation==='ANY'||icao===SETTINGS.alarmStation);
+    const isSpecialAlarmCondition=(stationMatch&&gustValue>=SETTINGS.gustThreshold&&(!SETTINGS.requireTS||tsPresent));
     if(isNew&&isSpecialAlarmCondition){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
     if(typeof windSpeed==='number'){state.stats.winds.push(windSpeed);if(state.stats.winds.length>200)state.stats.winds.shift();}
     if(parsed.td&&typeof parsed.td==='string'){const m=parsed.td.match(/^(M?)(\d{1,2})\/(M?)(\d{1,2})$/);if(m){const sign=m[1]==='M'?-1:1;const tempVal=sign*parseInt(m[2],10);state.stats.temps.push(tempVal);if(state.stats.temps.length>200)state.stats.temps.shift();}}
@@ -2172,7 +2273,7 @@ buildTafTable();
 function tafSegFlags(seg){
   return {
     windAlert: seg.windBase!=='--'&&/G\d{2,3}KT/i.test(seg.windBase),
-    visAlert:  !isNaN(seg.visNum)&&seg.visNum<=5000,
+    visAlert:  !isNaN(seg.visNum)&&seg.visNum<=SETTINGS.visAlertM,
     wxCrit:    /\b(?:VCTS|VCSH|TS|TSRA)\b/i.test(seg.wx)||/\bSHRA\b/i.test(seg.wx)||/(^|\s)(?:\+|-)\s*(?:SHRA|SH|RA)/i.test(seg.wx),
     cldCrit:   /(?:FEW|SCT|BKN|OVC)\d{3}(?:CB|TCU)/i.test(seg.cld)
   };
@@ -2786,6 +2887,62 @@ document.getElementById('vis-refresh-btn')?.addEventListener('click',async()=>{c
 document.getElementById('mute-btn')?.addEventListener('click',()=>{const b=document.getElementById('mute-btn');mute=!mute;b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';});
 document.getElementById('notify-btn')?.addEventListener('click',toggleNotifications);
 updateNotifyButton();
+
+/* ── SETTINGS MODAL (notifications & alarms) ── */
+function syncMuteButton(){
+  const b=document.getElementById('mute-btn');
+  if(b){b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';}
+}
+function populateSettingsForm(){
+  const sel=document.getElementById('set-station');
+  if(sel&&!sel.options.length){
+    let opts='<option value="ANY">Any station</option>';
+    STATIONS.forEach(ic=>{opts+=`<option value="${ic}">${ic}${STATION_FLAGS[ic]?' '+STATION_FLAGS[ic]:''}</option>`;});
+    sel.innerHTML=opts;
+  }
+  if(sel) sel.value=SETTINGS.alarmStation;
+  const g=document.getElementById('set-gust'); if(g) g.value=SETTINGS.gustThreshold;
+  const ts=document.getElementById('set-ts'); if(ts) ts.checked=!!SETTINGS.requireTS;
+  const vis=document.getElementById('set-vis'); if(vis) vis.value=SETTINGS.visAlertM;
+  const beep=document.getElementById('set-beep'); if(beep) beep.checked=!!SETTINGS.beepOnUpdate;
+  const snd=document.getElementById('set-sound'); if(snd) snd.checked=!mute;
+  const vol=document.getElementById('set-vol'); const volv=document.getElementById('set-vol-val');
+  if(vol){ const pct=Math.round(SETTINGS.alarmVolume*1000); vol.value=pct; if(volv) volv.textContent=pct+'%'; }
+  const ntf=document.getElementById('set-notify'); if(ntf){ ntf.checked=notificationsEnabled; ntf.disabled=!('Notification' in window)||Notification.permission==='denied'; }
+}
+function openSettings(){
+  populateSettingsForm();
+  const m=document.getElementById('settingsModal');
+  if(m) m.classList.remove('hidden');
+}
+function closeSettings(){
+  const m=document.getElementById('settingsModal');
+  if(m) m.classList.add('hidden');
+}
+async function saveSettingsFromForm(){
+  const sel=document.getElementById('set-station'); if(sel) SETTINGS.alarmStation=sel.value;
+  const g=document.getElementById('set-gust'); if(g){ const v=parseInt(g.value,10); if(!isNaN(v)) SETTINGS.gustThreshold=Math.min(120,Math.max(5,v)); }
+  const ts=document.getElementById('set-ts'); if(ts) SETTINGS.requireTS=ts.checked;
+  const vis=document.getElementById('set-vis'); if(vis){ const v=parseInt(vis.value,10); if(!isNaN(v)) SETTINGS.visAlertM=Math.min(9999,Math.max(0,v)); }
+  const beep=document.getElementById('set-beep'); if(beep) SETTINGS.beepOnUpdate=beep.checked;
+  const vol=document.getElementById('set-vol'); if(vol){ SETTINGS.alarmVolume=Math.min(0.1,Math.max(0,parseInt(vol.value,10)/1000)); }
+  saveSettings();
+  // Sound (mute) toggle
+  const snd=document.getElementById('set-sound');
+  if(snd){ mute=!snd.checked; syncMuteButton(); }
+  // Browser notifications toggle (request permission if turning on)
+  const ntf=document.getElementById('set-notify');
+  if(ntf && ntf.checked!==notificationsEnabled){ await toggleNotifications(); }
+  closeSettings();
+}
+document.getElementById('settings-btn')?.addEventListener('click',openSettings);
+document.getElementById('settings-close')?.addEventListener('click',closeSettings);
+document.getElementById('settingsModal')?.addEventListener('click',e=>{ if(e.target.id==='settingsModal') closeSettings(); });
+document.getElementById('set-save')?.addEventListener('click',saveSettingsFromForm);
+document.getElementById('set-test')?.addEventListener('click',()=>playSpecialAlarm(true));
+document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=Object.assign({},DEFAULT_SETTINGS); saveSettings(); populateSettingsForm(); });
+document.getElementById('set-vol')?.addEventListener('input',e=>{ const v=document.getElementById('set-vol-val'); if(v) v.textContent=e.target.value+'%'; });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
 document.getElementById('test-btn')?.addEventListener('click',()=>{testMode=!testMode;const b=document.getElementById('test-btn');if(b)b.textContent=testMode?'⚗ Exit Test':'⚗ Test Mode';if(testMode)startTestRunner();else stopTestRunner();});
 document.getElementById('night-btn')?.addEventListener('click',()=>{
   const b=document.getElementById('night-btn');
