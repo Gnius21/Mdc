@@ -753,6 +753,22 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 }
 @media(max-width:960px){.tab-btn{font-size:11px;padding:8px 6px;letter-spacing:0.6px;}}
 
+/* ── LIVE WEATHER BAR (KNMI Bonaire) ── */
+.weather-bar{
+  width:100%;max-width:1240px;margin:10px 0 0;
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 16px;border-radius:12px;
+  background:rgba(6,24,42,0.6);border:1px solid var(--border);backdrop-filter:blur(8px);
+}
+.weather-bar.hidden{display:none;}
+.wb-title{font-family:var(--cond);font-weight:800;font-size:13px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;white-space:nowrap;}
+.wb-items{display:flex;flex-wrap:wrap;gap:8px 18px;flex:1;}
+.wb-item{display:flex;align-items:baseline;gap:6px;}
+.wb-item .l{font-family:var(--cond);font-size:9px;letter-spacing:0.9px;text-transform:uppercase;color:var(--muted);}
+.wb-item .v{font-family:var(--mono);font-size:15px;font-weight:700;color:#d0e8ff;}
+.wb-time{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;}
+@media(max-width:560px){.wb-item .v{font-size:13px;}.wb-items{gap:6px 12px;}}
+
 /* ── IMPROVED STATION CARDS ── */
 .stations-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;
@@ -898,6 +914,13 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       </div>
       <button id="refresh-btn" class="btn-primary" title="Refresh METARs & Vis">↻ Refresh All</button>
     </div>
+  </div>
+
+  <!-- ═══ LIVE WEATHER BAR (KNMI Bonaire) ═══ -->
+  <div id="weatherBar" class="weather-bar hidden" role="region" aria-label="Current Bonaire weather">
+    <span class="wb-title">🇧🇶 Bonaire Now</span>
+    <span class="wb-items" id="weatherBarItems"></span>
+    <span class="wb-time" id="weatherBarTime"></span>
   </div>
 
   <!-- ═══ TAB BAR ═══ -->
@@ -1520,6 +1543,7 @@ async function loadKnmiData(force){
           var sHtml = buildKnmiGridHtml(sParsed);
           if(sHtml) gridEl.innerHTML = sHtml;
           renderKnmiFeels();
+          renderWeatherBar();
           loadKnmiCharts();
           statusEl.textContent = 'Showing cached data · refreshing…';
         }
@@ -1542,6 +1566,7 @@ async function loadKnmiData(force){
     if(!html) throw new Error('no fields parsed (page format may have changed)');
     gridEl.innerHTML = html;
     renderKnmiFeels();
+    renderWeatherBar();
     loadKnmiCharts();
     statusEl.className = 'knmi-status ok';
     statusEl.textContent = resp.stale
@@ -1607,6 +1632,30 @@ function renderKnmiFeels(){
       '<div class="knmi-feels-delta">' + deltaStr + '</div>' +
       '<div class="knmi-feels-note">Heat index · ' + Math.round(n.rh) + '% RH</div>' +
     '</div>';
+}
+
+/* Live weather bar on the main dashboard (current KNMI Bonaire conditions) */
+function renderWeatherBar(){
+  var bar=byId('weatherBar'), itemsEl=byId('weatherBarItems'), timeEl=byId('weatherBarTime');
+  if(!bar||!itemsEl) return;
+  var n=window.__knmiData;
+  if(!n || n.temp_c==null){ bar.classList.add('hidden'); return; }
+  function it(l,v,col){ return '<span class="wb-item"><span class="l">'+l+'</span><span class="v"'+(col&&col!=='inherit'?' style="color:'+col+'"':'')+'>'+v+'</span></span>'; }
+  var hi=heatIndexC(n.temp_c,n.rh);
+  var items=[];
+  items.push(it('Temp', n.temp_c.toFixed(1)+'°', tempColorCode(n.temp_c)));
+  if(hi!=null) items.push(it('Feels', hi.toFixed(1)+'°', tempColorCode(hi)));
+  if(n.dew_c!=null) items.push(it('Dew', n.dew_c.toFixed(1)+'°'));
+  if(n.rh!=null) items.push(it('RH', Math.round(n.rh)+'%'));
+  if(n.wind_kt!=null){ var wd=(n.wind_dir!=null?Math.round(n.wind_dir)+'° ':''); items.push(it('Wind', wd+n.wind_kt+'kt', windSpeedColor(n.wind_kt))); }
+  if(n.gust_kt!=null) items.push(it('Gust', n.gust_kt+'kt', windSpeedColor(n.gust_kt)));
+  if(n.slp!=null) items.push(it('QNH', n.slp.toFixed(1)));
+  if(n.cloud_octa!=null) items.push(it('Cloud', n.cloud_octa+'/8'));
+  if(n.precip_10m!=null) items.push(it('Rain', n.precip_10m+'mm'));
+  if(n.vis_m!=null) items.push(it('Vis', n.vis_m>=1000?(n.vis_m/1000).toFixed(1)+'km':n.vis_m+'m'));
+  itemsEl.innerHTML=items.join('');
+  if(timeEl) timeEl.textContent=n.time?('Obs '+n.time):'';
+  bar.classList.remove('hidden');
 }
 
 /* ── KNMI TREND CHARTS ──
@@ -2729,7 +2778,7 @@ function stopTestRunner(){if(testInterval){clearInterval(testInterval);testInter
 
 /* ── EVENTS ── */
 document.getElementById('metar-refresh-btn')?.addEventListener('click',()=>refreshAllMetars());
-document.getElementById('refresh-btn')?.addEventListener('click',()=>{updateVisFromKnmi();refreshAllMetars();});
+document.getElementById('refresh-btn')?.addEventListener('click',()=>{updateVisFromKnmi();refreshAllMetars();loadKnmiData(true);});
 document.getElementById('taf-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('taf-refresh-btn');btn.disabled=true;try{await loadAllTafs();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('synop-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('synop-refresh-btn');btn.disabled=true;try{await loadAllSynops();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('knmi-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('knmi-refresh-btn');btn.disabled=true;try{await loadKnmiData(true);}catch(e){}setTimeout(()=>btn.disabled=false,800);});
@@ -3057,7 +3106,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 /* ── INIT ── */
 (async function init(){
   try{
-    await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops()]);
+    await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops(),loadKnmiData()]);
     const anyData=STATIONS.some(icao=>metarState[icao]&&metarState[icao].lastRaw);
     if(!anyData){
       console.warn('No live METAR data — activating test mode.');
