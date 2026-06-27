@@ -782,6 +782,24 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .wb-time{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;}
 @media(max-width:560px){.wb-item .v{font-size:13px;}.wb-items{gap:6px 12px;}}
 
+/* ── SPECI BANNER ── */
+.speci-banner{
+  margin:0 0 10px;padding:9px 14px;border-radius:10px;
+  font-family:var(--mono);font-size:12px;line-height:1.55;
+  background:rgba(6,24,42,0.6);border:1px solid var(--border);color:var(--muted);
+}
+.speci-banner.has-speci{
+  background:rgba(255,95,95,0.1);border:1px solid rgba(255,95,95,0.45);color:#ffd0d0;
+  box-shadow:0 0 0 1px rgba(255,95,95,0.15),0 0 18px rgba(255,95,95,0.12);
+  animation:speci-pulse 1.6s ease-in-out infinite;
+}
+@keyframes speci-pulse{0%,100%{border-color:rgba(255,95,95,0.45);}50%{border-color:rgba(255,95,95,0.85);}}
+.speci-banner .speci-hd{font-family:var(--cond);font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#ff8f8f;margin-right:8px;}
+.speci-banner .speci-item{display:block;margin-top:4px;color:#ffe0e0;}
+.speci-banner .speci-item b{color:#fff;font-weight:700;}
+.speci-banner.no-speci{color:var(--muted);}
+.speci-banner.no-speci .speci-hd{color:var(--ok);}
+
 /* ── SETTINGS MODAL ── */
 .settings-overlay{
   position:fixed;inset:0;z-index:1000;
@@ -1044,6 +1062,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
           <button id="metar-refresh-btn" class="btn-primary" style="font-size:11px;height:30px;padding:6px 12px;" title="Refresh METAR">↻ METAR</button>
         </div>
       </div>
+      <div id="speciBanner" class="speci-banner" aria-live="polite">Checking for SPECI…</div>
       <div class="table-card">
         <table class="metar-table" aria-label="METAR list">
           <thead>
@@ -2163,8 +2182,48 @@ async function refreshAllMetars(){
     const results=await Promise.all(STATIONS.map(s=>fetchMetarFor(s)));
     const local=formatLocalDateTimeParts();
     if(lastUpdatedEl)lastUpdatedEl.textContent=`Last updated: ${local.date} ${local.time}`;
+    checkSpeci();
     return results.some(Boolean);
   }catch(e){console.error('refreshAllMetars error',e);return false;}
+}
+
+/* ── SPECI WATCH (TNCA / TNCB / TNCC only) ──
+   tgftp station files omit the METAR/SPECI keyword, so we read the report
+   type from the AviationWeather.gov JSON API (metarType field). */
+const SPECI_ICAOS=['TNCA','TNCB','TNCC'];
+async function checkSpeci(){
+  const el=document.getElementById('speciBanner');
+  if(!el) return;
+  try{
+    const url=`https://aviationweather.gov/api/data/metar?ids=${SPECI_ICAOS.join(',')}&format=json`;
+    const out=await fetchWithRetries(url,2);
+    if(!out||!out.ok||!out.text) return; // leave previous state on failure
+    let data; try{ data=JSON.parse(out.text); }catch(e){ return; }
+    if(!Array.isArray(data)) return;
+    // latest report per station
+    const latest={};
+    data.forEach(r=>{
+      const id=r.icaoId||r.station_id;
+      if(!id||SPECI_ICAOS.indexOf(id)<0) return;
+      const t=r.obsTime||0;
+      if(!latest[id]||t>(latest[id].obsTime||0)) latest[id]=r;
+    });
+    const specis=[];
+    SPECI_ICAOS.forEach(id=>{
+      const r=latest[id];
+      if(r&&String(r.metarType||'').toUpperCase()==='SPECI'){
+        specis.push({id, raw:r.rawOb||r.metar||'', flag:STATION_FLAGS[id]||''});
+      }
+    });
+    if(specis.length){
+      el.className='speci-banner has-speci';
+      el.innerHTML='<span class="speci-hd">⚡ SPECI active</span>'+
+        specis.map(s=>`<span class="speci-item"><b>${s.flag} ${s.id}</b> — ${sanitizeTextForDisplay(s.raw)}</span>`).join('');
+    } else {
+      el.className='speci-banner no-speci';
+      el.innerHTML='<span class="speci-hd">✓ No SPECI</span>No special reports active for TNCA · TNCB · TNCC.';
+    }
+  }catch(e){ /* keep previous banner state on error */ }
 }
 
 /* ── TAF PARSING ── */
