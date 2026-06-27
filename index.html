@@ -812,6 +812,13 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .settings-body input[type=number]:focus,.settings-body select:focus{outline:none;border-color:var(--accent);}
 .settings-body input[type=range]{accent-color:var(--accent);width:120px;cursor:pointer;}
 .set-chk{width:20px;height:20px;accent-color:var(--accent-strong);cursor:pointer;flex-shrink:0;}
+.set-stations{display:flex;flex-direction:column;gap:2px;margin:6px 0 2px;}
+.set-st-row{display:grid;grid-template-columns:1fr 46px 64px 40px;align-items:center;gap:8px;padding:6px 0;}
+.set-st-head{font-family:var(--cond);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid rgba(85,193,255,0.12);padding-bottom:5px;}
+.set-st-head span{text-align:center;}.set-st-head span:first-child{text-align:left;}
+.set-st-name{font-family:var(--mono);font-size:13px;color:#d0e8ff;}
+.set-st-row .set-chk{justify-self:center;}
+.settings-body .set-st-row input[type=number]{width:58px;justify-self:center;padding:5px 6px;font-size:13px;}
 .settings-foot{
   display:flex;align-items:center;gap:8px;
   padding:14px 18px;border-top:1px solid rgba(85,193,255,0.16);
@@ -981,17 +988,12 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <button id="settings-close" class="settings-x" aria-label="Close settings">✕</button>
       </div>
       <div class="settings-body">
-        <div class="set-section">Special alarm trigger</div>
-        <label class="set-row"><span class="set-lbl">Alarm station</span>
-          <select id="set-station" class="set-ctl"></select></label>
-        <label class="set-row"><span class="set-lbl">Gust threshold</span>
-          <span class="set-ctl set-num"><input id="set-gust" type="number" min="10" max="120" step="1"><em>kt</em></span></label>
-        <label class="set-row"><span class="set-lbl">Require thunderstorm (TS/TSRA)</span>
-          <input id="set-ts" type="checkbox" class="set-chk"></label>
+        <div class="set-section">Per-station alarms</div>
+        <div id="set-stations" class="set-stations"></div>
+
+        <div class="set-section">Alerts, sound &amp; notifications</div>
         <label class="set-row"><span class="set-lbl">Low-visibility alert below</span>
           <span class="set-ctl set-num"><input id="set-vis" type="number" min="0" max="9999" step="100"><em>m</em></span></label>
-
-        <div class="set-section">Sound &amp; notifications</div>
         <label class="set-row"><span class="set-lbl">Beep on each new METAR</span>
           <input id="set-beep" type="checkbox" class="set-chk"></label>
         <label class="set-row"><span class="set-lbl">Alarm sound enabled</span>
@@ -1182,17 +1184,32 @@ const metarState = {};
 let _windRoseId = 0;
 
 /* ── USER SETTINGS (notifications & alarms) ── */
-const SETTINGS_KEY='rwc-settings-v1';
+const SETTINGS_KEY='rwc-settings-v2';
 const DEFAULT_SETTINGS={
-  alarmStation:'TNCA',  // ICAO that triggers the special alarm, or 'ANY'
-  gustThreshold:35,     // kt
-  requireTS:true,       // also require TS/TSRA in the weather group
-  visAlertM:5000,       // metres — highlight visibility at/below this
+  visAlertM:5000,       // metres — highlight visibility at/below this (global)
   beepOnUpdate:true,    // soft beep on every new METAR
-  alarmVolume:0.05      // gain 0–0.1
+  alarmVolume:0.05,     // gain 0–0.1
+  stations:{}           // per-station alarm config: {alarm,gust,requireTS}
 };
-let SETTINGS=Object.assign({},DEFAULT_SETTINGS);
-try{const _s=JSON.parse(localStorage.getItem(SETTINGS_KEY));if(_s&&typeof _s==='object')SETTINGS=Object.assign(SETTINGS,_s);}catch(e){}
+STATIONS.forEach(function(ic){ DEFAULT_SETTINGS.stations[ic]={alarm:(ic==='TNCA'),gust:35,requireTS:true}; });
+let SETTINGS=JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+try{
+  const _s=JSON.parse(localStorage.getItem(SETTINGS_KEY))||JSON.parse(localStorage.getItem('rwc-settings-v1'));
+  if(_s&&typeof _s==='object'){
+    if(_s.visAlertM!=null) SETTINGS.visAlertM=_s.visAlertM;
+    if(_s.beepOnUpdate!=null) SETTINGS.beepOnUpdate=_s.beepOnUpdate;
+    if(_s.alarmVolume!=null) SETTINGS.alarmVolume=_s.alarmVolume;
+    if(_s.stations&&typeof _s.stations==='object'){
+      STATIONS.forEach(function(ic){ if(_s.stations[ic]) SETTINGS.stations[ic]=Object.assign(SETTINGS.stations[ic],_s.stations[ic]); });
+    } else if(_s.alarmStation){ // migrate old single-station format
+      STATIONS.forEach(function(ic){
+        SETTINGS.stations[ic].alarm=(_s.alarmStation==='ANY'||ic===_s.alarmStation);
+        if(_s.gustThreshold!=null) SETTINGS.stations[ic].gust=_s.gustThreshold;
+        if(_s.requireTS!=null) SETTINGS.stations[ic].requireTS=_s.requireTS;
+      });
+    }
+  }
+}catch(e){}
 function saveSettings(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(SETTINGS));}catch(e){}}
 
 /* ── UTILS ── */
@@ -1268,7 +1285,7 @@ async function toggleNotifications(){
     if(perm==='granted'){
       notificationsEnabled=true;
       try{localStorage.setItem('rwc-notify-enabled','1');}catch(e){}
-      try{const st=SETTINGS.alarmStation==='ANY'?'any station':SETTINGS.alarmStation;new Notification('Regional Weather Centre',{body:`Notifications enabled — you will be alerted on the special alarm (${st} gust ≥${SETTINGS.gustThreshold}kt${SETTINGS.requireTS?' with TS/TSRA':''}). Adjust in ⚙ Settings.`,icon:undefined,silent:false});}catch(e){}
+      try{const on=STATIONS.filter(ic=>SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);const st=on.length?on.join(', '):'no stations (enable in ⚙ Settings)';new Notification('Regional Weather Centre',{body:`Notifications enabled — alarms active for: ${st}. Adjust per-station thresholds in ⚙ Settings.`,icon:undefined,silent:false});}catch(e){}
     }
   } else {
     notificationsEnabled=false;
@@ -2089,9 +2106,9 @@ function renderMetar(icao,raw){
     if(!isNaN(parsed.visMin)&&parsed.visMin<=SETTINGS.visAlertM)tds[3].classList.add('alert');
     if(wxCritical)tds[4].classList.add('alert');
     if(cloudFlag)tds[5].classList.add('cloud-critical');
-    // ── SPECIAL ALARM ── configurable: station + gust threshold + optional TS. Sounds twice + browser notification.
-    const stationMatch=(SETTINGS.alarmStation==='ANY'||icao===SETTINGS.alarmStation);
-    const isSpecialAlarmCondition=(stationMatch&&gustValue>=SETTINGS.gustThreshold&&(!SETTINGS.requireTS||tsPresent));
+    // ── SPECIAL ALARM ── per-station: enabled + gust threshold + optional TS. Sounds twice + browser notification.
+    const acfg=SETTINGS.stations[icao];
+    const isSpecialAlarmCondition=!!(acfg&&acfg.alarm&&gustValue>=acfg.gust&&(!acfg.requireTS||tsPresent));
     if(isNew&&isSpecialAlarmCondition){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
     if(typeof windSpeed==='number'){state.stats.winds.push(windSpeed);if(state.stats.winds.length>200)state.stats.winds.shift();}
     if(parsed.td&&typeof parsed.td==='string'){const m=parsed.td.match(/^(M?)(\d{1,2})\/(M?)(\d{1,2})$/);if(m){const sign=m[1]==='M'?-1:1;const tempVal=sign*parseInt(m[2],10);state.stats.temps.push(tempVal);if(state.stats.temps.length>200)state.stats.temps.shift();}}
@@ -2896,15 +2913,26 @@ function syncMuteButton(){
   if(b){b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';}
 }
 function populateSettingsForm(){
-  const sel=document.getElementById('set-station');
-  if(sel&&!sel.options.length){
-    let opts='<option value="ANY">Any station</option>';
-    STATIONS.forEach(ic=>{opts+=`<option value="${ic}">${ic}${STATION_FLAGS[ic]?' '+STATION_FLAGS[ic]:''}</option>`;});
-    sel.innerHTML=opts;
+  const wrap=document.getElementById('set-stations');
+  if(wrap&&!wrap.dataset.built){
+    let h='<div class="set-st-row set-st-head"><span>Station</span><span>Alarm</span><span>Gust kt</span><span>TS</span></div>';
+    STATIONS.forEach(ic=>{
+      h+=`<div class="set-st-row" data-icao="${ic}">`+
+         `<span class="set-st-name">${ic}${STATION_FLAGS[ic]?' '+STATION_FLAGS[ic]:''}</span>`+
+         `<input type="checkbox" class="set-chk" id="set-st-${ic}-alarm">`+
+         `<input type="number" id="set-st-${ic}-gust" min="5" max="120" step="1">`+
+         `<input type="checkbox" class="set-chk" id="set-st-${ic}-ts">`+
+         `</div>`;
+    });
+    wrap.innerHTML=h;
+    wrap.dataset.built='1';
   }
-  if(sel) sel.value=SETTINGS.alarmStation;
-  const g=document.getElementById('set-gust'); if(g) g.value=SETTINGS.gustThreshold;
-  const ts=document.getElementById('set-ts'); if(ts) ts.checked=!!SETTINGS.requireTS;
+  STATIONS.forEach(ic=>{
+    const c=SETTINGS.stations[ic]||{};
+    const a=document.getElementById(`set-st-${ic}-alarm`); if(a) a.checked=!!c.alarm;
+    const g=document.getElementById(`set-st-${ic}-gust`); if(g) g.value=(c.gust!=null?c.gust:35);
+    const t=document.getElementById(`set-st-${ic}-ts`); if(t) t.checked=!!c.requireTS;
+  });
   const vis=document.getElementById('set-vis'); if(vis) vis.value=SETTINGS.visAlertM;
   const beep=document.getElementById('set-beep'); if(beep) beep.checked=!!SETTINGS.beepOnUpdate;
   const snd=document.getElementById('set-sound'); if(snd) snd.checked=!mute;
@@ -2922,9 +2950,12 @@ function closeSettings(){
   if(m) m.classList.add('hidden');
 }
 async function saveSettingsFromForm(){
-  const sel=document.getElementById('set-station'); if(sel) SETTINGS.alarmStation=sel.value;
-  const g=document.getElementById('set-gust'); if(g){ const v=parseInt(g.value,10); if(!isNaN(v)) SETTINGS.gustThreshold=Math.min(120,Math.max(5,v)); }
-  const ts=document.getElementById('set-ts'); if(ts) SETTINGS.requireTS=ts.checked;
+  STATIONS.forEach(ic=>{
+    const c=SETTINGS.stations[ic]||(SETTINGS.stations[ic]={alarm:false,gust:35,requireTS:true});
+    const a=document.getElementById(`set-st-${ic}-alarm`); if(a) c.alarm=a.checked;
+    const g=document.getElementById(`set-st-${ic}-gust`); if(g){ const v=parseInt(g.value,10); if(!isNaN(v)) c.gust=Math.min(120,Math.max(5,v)); }
+    const t=document.getElementById(`set-st-${ic}-ts`); if(t) c.requireTS=t.checked;
+  });
   const vis=document.getElementById('set-vis'); if(vis){ const v=parseInt(vis.value,10); if(!isNaN(v)) SETTINGS.visAlertM=Math.min(9999,Math.max(0,v)); }
   const beep=document.getElementById('set-beep'); if(beep) SETTINGS.beepOnUpdate=beep.checked;
   const vol=document.getElementById('set-vol'); if(vol){ SETTINGS.alarmVolume=Math.min(0.1,Math.max(0,parseInt(vol.value,10)/1000)); }
@@ -2942,7 +2973,7 @@ document.getElementById('settings-close')?.addEventListener('click',closeSetting
 document.getElementById('settingsModal')?.addEventListener('click',e=>{ if(e.target.id==='settingsModal') closeSettings(); });
 document.getElementById('set-save')?.addEventListener('click',saveSettingsFromForm);
 document.getElementById('set-test')?.addEventListener('click',()=>playSpecialAlarm(true));
-document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=Object.assign({},DEFAULT_SETTINGS); saveSettings(); populateSettingsForm(); });
+document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); saveSettings(); populateSettingsForm(); });
 document.getElementById('set-vol')?.addEventListener('input',e=>{ const v=document.getElementById('set-vol-val'); if(v) v.textContent=e.target.value+'%'; });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
 document.getElementById('test-btn')?.addEventListener('click',()=>{testMode=!testMode;const b=document.getElementById('test-btn');if(b)b.textContent=testMode?'⚗ Exit Test':'⚗ Test Mode';if(testMode)startTestRunner();else stopTestRunner();});
