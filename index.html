@@ -559,7 +559,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   color:var(--accent);text-transform:uppercase;
 }
 .knmi-charts-sub{font-family:var(--mono);font-size:10px;font-weight:400;letter-spacing:0;color:rgba(200,225,255,0.4);text-transform:none;margin-left:6px;}
-.knmi-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:12px;padding:12px 14px 14px;}
+.knmi-charts{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px;padding:12px 14px 14px;}
 .knmi-charts-loading{color:var(--muted);font-size:12px;padding:8px 2px;}
 .knmi-chart{
   background:rgba(5,16,36,0.8);border:1px solid rgba(85,193,255,0.12);
@@ -568,9 +568,10 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .knmi-chart-hd{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px;}
 .knmi-chart-title{font-size:11px;font-weight:700;letter-spacing:0.5px;color:rgba(200,225,255,0.6);text-transform:uppercase;}
 .knmi-chart-cur{font-family:var(--mono);font-size:13px;font-weight:700;}
-.knmi-chart-svg{width:100%;height:110px;display:block;overflow:visible;}
+.knmi-chart-svg{width:100%;height:auto;aspect-ratio:300/140;display:block;overflow:visible;}
 .knmi-chart-svg .knmi-ax{fill:rgba(200,225,255,0.35);font-size:9px;font-family:var(--mono);}
 .knmi-chart-svg .knmi-ax-now{fill:rgba(255,255,255,0.55);font-size:9px;font-family:var(--mono);}
+.knmi-chart-empty{height:90px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px;font-style:italic;}
 
 /* ── TAF FORECAST CARDS ── */
 .taf-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:16px;padding:16px;}
@@ -1828,16 +1829,19 @@ function hourlyHasData(H){
 
 /* Build one mini line chart. cfg: {title,unit,color,obs[],fc[],nowIdx,actual} */
 function knmiChartSvg(cfg){
-  const W=300,H=120,padL=34,padR=10,padT=20,padB=18;
+  const W=300,H=140,padL=36,padR=12,padT=22,padB=22;
   const iw=W-padL-padR, ih=H-padT-padB;
   const obs=cfg.obs||[], fc=cfg.fc||[];
   const n=Math.max(obs.length,fc.length);
   const all=obs.concat(fc).filter(function(v){return v!=null&&isFinite(v);});
   if(cfg.actual!=null&&isFinite(cfg.actual)) all.push(cfg.actual);
-  if(!all.length) return '';
+  if(!all.length){
+    return `<div class="knmi-chart"><div class="knmi-chart-hd"><span class="knmi-chart-title">${cfg.title}</span><span class="knmi-chart-cur" style="color:${cfg.color}">—</span></div>`+
+      `<div class="knmi-chart-empty">no data yet</div></div>`;
+  }
   let vmin=Math.min.apply(null,all), vmax=Math.max.apply(null,all);
   if(vmax-vmin<1e-6){ vmax+=1; vmin-=1; }
-  const pad=(vmax-vmin)*0.12; vmin-=pad; vmax+=pad;
+  const padv=(vmax-vmin)*0.14; vmin-=padv; vmax+=padv;
   const x=i=> padL+(n<=1?0:(i/(n-1))*iw);
   const y=v=> padT+(1-(v-vmin)/(vmax-vmin))*ih;
   function pathFor(arr){
@@ -1846,30 +1850,39 @@ function knmiChartSvg(cfg){
       d+=(st?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1)+' '; st=true; }
     return d.trim();
   }
+  function dotsFor(arr,r,fill,op){
+    let s='';
+    for(let i=0;i<arr.length;i++){ const v=arr[i]; if(v==null||!isFinite(v))continue;
+      s+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="${r}" fill="${fill}"${op?` opacity="${op}"`:''}/>`; }
+    return s;
+  }
   const obsD=pathFor(obs), fcD=pathFor(fc);
   const ni=cfg.nowIdx!=null?cfg.nowIdx:6;
   const nowX=x(ni).toFixed(1);
+  const baseY=(padT+ih).toFixed(1);
   const fmt=v=> Math.abs(v)>=100? v.toFixed(0) : v.toFixed(1);
-  let dots='';
+  let marker='';
   if(cfg.actual!=null&&isFinite(cfg.actual)){
     const ay=y(cfg.actual).toFixed(1);
-    dots+=`<path d="M${(parseFloat(nowX)-4).toFixed(1)} ${ay} l4 -4.6 l4 4.6 l-4 4.6 z" fill="${cfg.color}" stroke="#0a1428" stroke-width="0.8"/>`;
+    marker=`<path d="M${(parseFloat(nowX)-4).toFixed(1)} ${ay} l4 -4.8 l4 4.8 l-4 4.8 z" fill="${cfg.color}" stroke="#0a1428" stroke-width="0.8"/>`;
   }
   const curStr = cfg.actual!=null&&isFinite(cfg.actual)? fmt(cfg.actual)+(cfg.unit||'') : '—';
   return `<div class="knmi-chart">
     <div class="knmi-chart-hd"><span class="knmi-chart-title">${cfg.title}</span><span class="knmi-chart-cur" style="color:${cfg.color}">${curStr}</span></div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="knmi-chart-svg">
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${padT+ih}" stroke="rgba(85,193,255,0.12)" stroke-width="1"/>
-      <line x1="${padL}" y1="${(padT+ih).toFixed(1)}" x2="${W-padR}" y2="${(padT+ih).toFixed(1)}" stroke="rgba(85,193,255,0.12)" stroke-width="1"/>
-      <text x="2" y="${(padT+4).toFixed(1)}" class="knmi-ax">${fmt(vmax)}</text>
-      <text x="2" y="${(padT+ih).toFixed(1)}" class="knmi-ax">${fmt(vmin)}</text>
-      <line x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${padT+ih}" stroke="rgba(255,255,255,0.28)" stroke-width="1" stroke-dasharray="3 3"/>
-      <text x="${nowX}" y="${(padT-7).toFixed(1)}" class="knmi-ax-now" text-anchor="middle">now</text>
-      <text x="${padL}" y="${(H-5).toFixed(1)}" class="knmi-ax">-6h</text>
-      <text x="${(W-padR).toFixed(1)}" y="${(H-5).toFixed(1)}" class="knmi-ax" text-anchor="end">+6h</text>
-      ${obsD?`<path d="${obsD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
-      ${fcD?`<path d="${fcD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" opacity="0.85"/>`:''}
-      ${dots}
+    <svg viewBox="0 0 ${W} ${H}" class="knmi-chart-svg">
+      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="rgba(85,193,255,0.14)" stroke-width="1"/>
+      <line x1="${padL}" y1="${baseY}" x2="${W-padR}" y2="${baseY}" stroke="rgba(85,193,255,0.14)" stroke-width="1"/>
+      <text x="3" y="${(padT+4).toFixed(1)}" class="knmi-ax">${fmt(vmax)}</text>
+      <text x="3" y="${baseY}" class="knmi-ax">${fmt(vmin)}</text>
+      <line x1="${nowX}" y1="${padT}" x2="${nowX}" y2="${baseY}" stroke="rgba(255,255,255,0.3)" stroke-width="1" stroke-dasharray="3 3"/>
+      <text x="${nowX}" y="${(padT-8).toFixed(1)}" class="knmi-ax-now" text-anchor="middle">now</text>
+      <text x="${padL}" y="${(H-6).toFixed(1)}" class="knmi-ax">-6h</text>
+      <text x="${(W-padR).toFixed(1)}" y="${(H-6).toFixed(1)}" class="knmi-ax" text-anchor="end">+6h</text>
+      ${fcD?`<path d="${fcD}" fill="none" stroke="${cfg.color}" stroke-width="2" stroke-dasharray="4 3" stroke-linejoin="round" stroke-linecap="round" opacity="0.8"/>`:''}
+      ${obsD?`<path d="${obsD}" fill="none" stroke="${cfg.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`:''}
+      ${dotsFor(fc,1.5,cfg.color,'0.55')}
+      ${dotsFor(obs,2.1,cfg.color)}
+      ${marker}
     </svg>
   </div>`;
 }
