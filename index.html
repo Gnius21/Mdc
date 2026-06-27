@@ -2188,42 +2188,34 @@ async function refreshAllMetars(){
 }
 
 /* ── SPECI WATCH (TNCA / TNCB / TNCC only) ──
-   tgftp station files omit the METAR/SPECI keyword, so we read the report
-   type from the AviationWeather.gov JSON API (metarType field). */
+   Routine METARs for these stations are issued on the hour (HH:00Z), so any
+   observation whose time is NOT on the hour (e.g. 221500Z) is a SPECI. We read
+   the report time straight from the raw observation already on screen. */
 const SPECI_ICAOS=['TNCA','TNCB','TNCC'];
-async function checkSpeci(){
+function checkSpeci(){
   const el=document.getElementById('speciBanner');
   if(!el) return;
-  try{
-    const url=`https://aviationweather.gov/api/data/metar?ids=${SPECI_ICAOS.join(',')}&format=json`;
-    const out=await fetchWithRetries(url,2);
-    if(!out||!out.ok||!out.text) return; // leave previous state on failure
-    let data; try{ data=JSON.parse(out.text); }catch(e){ return; }
-    if(!Array.isArray(data)) return;
-    // latest report per station
-    const latest={};
-    data.forEach(r=>{
-      const id=r.icaoId||r.station_id;
-      if(!id||SPECI_ICAOS.indexOf(id)<0) return;
-      const t=r.obsTime||0;
-      if(!latest[id]||t>(latest[id].obsTime||0)) latest[id]=r;
-    });
-    const specis=[];
-    SPECI_ICAOS.forEach(id=>{
-      const r=latest[id];
-      if(r&&String(r.metarType||'').toUpperCase()==='SPECI'){
-        specis.push({id, raw:r.rawOb||r.metar||'', flag:STATION_FLAGS[id]||''});
-      }
-    });
-    if(specis.length){
-      el.className='speci-banner has-speci';
-      el.innerHTML='<span class="speci-hd">⚡ SPECI active</span>'+
-        specis.map(s=>`<span class="speci-item"><b>${s.flag} ${s.id}</b> — ${sanitizeTextForDisplay(s.raw)}</span>`).join('');
-    } else {
-      el.className='speci-banner no-speci';
-      el.innerHTML='<span class="speci-hd">✓ No SPECI</span>No special reports active for TNCA · TNCB · TNCC.';
+  const specis=[];
+  SPECI_ICAOS.forEach(id=>{
+    const st=metarState[id];
+    const raw=st&&st.lastRaw;
+    if(!raw) return;
+    const m=raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/); // ddhhmmZ
+    if(!m) return;
+    const minute=parseInt(m[3],10);
+    if(minute!==0){ // off the hour → special report
+      const tStr=`${m[2]}:${m[3]}Z`;
+      specis.push({id, raw, tStr, flag:STATION_FLAGS[id]||''});
     }
-  }catch(e){ /* keep previous banner state on error */ }
+  });
+  if(specis.length){
+    el.className='speci-banner has-speci';
+    el.innerHTML='<span class="speci-hd">⚡ SPECI active</span>'+
+      specis.map(s=>`<span class="speci-item"><b>${s.flag} ${s.id}</b> · ${s.tStr} — ${sanitizeTextForDisplay(s.raw)}</span>`).join('');
+  } else {
+    el.className='speci-banner no-speci';
+    el.innerHTML='<span class="speci-hd">✓ No SPECI</span>No special reports active for TNCA · TNCB · TNCC (all reports on the hour).';
+  }
 }
 
 /* ── TAF PARSING ── */
@@ -2969,6 +2961,7 @@ const TAF_TEST_SAMPLES={
 function applyTestSamples(sample){
   STATIONS.forEach(icao=>{const raw=sample[icao]||`${icao} 151206Z 09010KT 9999 FEW020 28/24 Q1013`;renderMetar(icao,raw);});
   TAF_ICAOS.forEach(icao=>{if(TAF_TEST_SAMPLES[icao])renderTafRow(icao,TAF_TEST_SAMPLES[icao]);});
+  checkSpeci();
   const local=formatLocalDateTimeParts();
   if(lastUpdatedEl)lastUpdatedEl.textContent=`Test data applied: ${local.date} ${local.time}`;
 }
