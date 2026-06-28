@@ -795,6 +795,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .wb-item{display:flex;align-items:baseline;gap:6px;}
 .wb-item .l{font-family:var(--cond);font-size:9px;letter-spacing:0.9px;text-transform:uppercase;color:var(--muted);}
 .wb-item .v{font-family:var(--mono);font-size:15px;font-weight:700;color:#d0e8ff;}
+.wb-item.wb-vis{align-items:baseline;}
+.wb-item.wb-vis .v{font-size:24px;font-weight:800;letter-spacing:0.5px;}
+@media(max-width:560px){.wb-item.wb-vis .v{font-size:20px;}}
 .wb-time{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap;}
 @media(max-width:560px){.wb-item .v{font-size:13px;}.wb-items{gap:6px 12px;}}
 
@@ -1829,7 +1832,11 @@ function renderWeatherBar(){
   if(n.slp!=null) items.push(it('QNH', n.slp.toFixed(1)));
   if(n.cloud_octa!=null) items.push(it('Cloud', n.cloud_octa+'/8'));
   if(n.precip_10m!=null) items.push(it('Rain', n.precip_10m+'mm'));
-  if(n.vis_m!=null) items.push(it('Vis', n.vis_m>=1000?(n.vis_m/1000).toFixed(1)+'km':n.vis_m+'m'));
+  if(n.vis_m!=null){
+    var vcol = n.vis_m>10000 ? 'var(--ok)' : (n.vis_m>=6000 ? 'var(--warn)' : 'var(--alert)');
+    var vstr = n.vis_m>=1000 ? (n.vis_m/1000).toFixed(1)+'km' : n.vis_m+'m';
+    items.push('<span class="wb-item wb-vis"><span class="l">Vis</span><span class="v" style="color:'+vcol+'">'+vstr+'</span></span>');
+  }
   itemsEl.innerHTML=items.join('');
   if(timeEl) timeEl.textContent=n.time?('Obs '+n.time):'';
   bar.classList.remove('hidden');
