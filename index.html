@@ -41,7 +41,7 @@
   --radius-lg:14px;
   --shadow:0 16px 40px rgba(0,0,0,0.55);
   --shadow-sm:0 4px 16px rgba(0,0,0,0.35);
-  --widget-width:270px;
+  --widget-width:380px;
   --mono:'Space Mono', ui-monospace, monospace;
   --sans:'Barlow', system-ui, sans-serif;
   --cond:'Barlow Condensed', system-ui, sans-serif;
@@ -146,6 +146,22 @@ body::after{
 
 /* ── TOP ROW ── */
 .top-row{width:100%;max-width:100%;display:grid;grid-template-columns:var(--widget-width) 1fr auto;align-items:center;gap:14px;}
+
+/* ── WINDY MAPS (satellite + radar, Curaçao) ── */
+.windy-widget{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.windy-box{
+  position:relative;border-radius:12px;overflow:hidden;
+  border:1px solid var(--border-bright);background:rgba(6,24,42,0.6);
+  box-shadow:var(--shadow);
+}
+.windy-box iframe{display:block;width:100%;height:150px;border:0;}
+.windy-lbl{
+  position:absolute;top:6px;left:6px;z-index:2;pointer-events:none;
+  font-family:var(--cond);font-size:10px;font-weight:700;letter-spacing:0.6px;
+  text-transform:uppercase;color:#d0e8ff;background:rgba(2,8,18,0.72);
+  padding:3px 7px;border-radius:6px;
+}
+@media(max-width:960px){.windy-box iframe{height:170px;}}
 
 /* ── WIDGET ── */
 .weather-widget{
@@ -943,8 +959,21 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 
   <!-- ═══ TOP ROW ═══ -->
   <div class="top-row" role="banner">
-    <!-- Vis Widget -->
-    <div class="weather-widget" id="bonaire-vis-widget" tabindex="0" aria-live="polite" role="region" aria-label="Bonaire visibility">
+    <!-- Windy satellite + radar (Curaçao) -->
+    <div class="windy-widget" role="region" aria-label="Windy satellite and radar focused on Curaçao">
+      <div class="windy-box">
+        <span class="windy-lbl">🛰 Satellite · Curaçao</span>
+        <iframe title="Windy satellite — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=7&level=surface&overlay=satellite&product=satellite&menu=&message=&marker=true&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+      </div>
+      <div class="windy-box">
+        <span class="windy-lbl">📡 Radar · Curaçao</span>
+        <iframe title="Windy radar — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
+          src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=7&level=surface&overlay=radar&product=radar&menu=&message=&marker=true&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+      </div>
+    </div>
+    <!-- Vis Widget (hidden — kept so the visibility code keeps running; value shows in the weather bar) -->
+    <div class="weather-widget hidden" id="bonaire-vis-widget" tabindex="0" aria-live="polite" role="region" aria-label="Bonaire visibility" aria-hidden="true">
       <div class="widget-head">
         <span class="icon">👁</span>
         <span class="title">Bonaire Visibility</span>
