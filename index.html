@@ -2188,10 +2188,11 @@ async function refreshAllMetars(){
 }
 
 /* ── SPECI WATCH (TNCA / TNCB / TNCC only) ──
-   Routine METARs for these stations are issued on the hour (HH:00Z), so any
-   observation whose time is NOT on the hour (e.g. 221500Z) is a SPECI. We read
-   the report time straight from the raw observation already on screen. */
+   Each station has a fixed routine issuance minute (TNCA/TNCC on the hour,
+   TNCB at :55). Any observation whose minute differs from the routine minute
+   is a SPECI. Read straight from the raw observation time already on screen. */
 const SPECI_ICAOS=['TNCA','TNCB','TNCC'];
+const SPECI_ROUTINE_MIN={TNCA:0, TNCB:55, TNCC:0};
 function checkSpeci(){
   const el=document.getElementById('speciBanner');
   if(!el) return;
@@ -2203,7 +2204,8 @@ function checkSpeci(){
     const m=raw.match(/\b(\d{2})(\d{2})(\d{2})Z\b/); // ddhhmmZ
     if(!m) return;
     const minute=parseInt(m[3],10);
-    if(minute!==0){ // off the hour → special report
+    const routine=SPECI_ROUTINE_MIN[id]!=null?SPECI_ROUTINE_MIN[id]:0;
+    if(minute!==routine){ // not the routine minute → special report
       const tStr=`${m[2]}:${m[3]}Z`;
       specis.push({id, raw, tStr, flag:STATION_FLAGS[id]||''});
     }
@@ -2214,7 +2216,7 @@ function checkSpeci(){
       specis.map(s=>`<span class="speci-item"><b>${s.flag} ${s.id}</b> · ${s.tStr} — ${sanitizeTextForDisplay(s.raw)}</span>`).join('');
   } else {
     el.className='speci-banner no-speci';
-    el.innerHTML='<span class="speci-hd">✓ No SPECI</span>No special reports active for TNCA · TNCB · TNCC (all reports on the hour).';
+    el.innerHTML='<span class="speci-hd">✓ No SPECI</span>No special reports active — TNCA · TNCC on the hour, TNCB at :55.';
   }
 }
 
