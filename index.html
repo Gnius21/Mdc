@@ -1225,8 +1225,8 @@ const FALLBACKS = [
   { name:'allorigins_json', prefix:'https://api.allorigins.win/get?url=' },
   { name:'jina_raw', prefix:'https://r.jina.ai/http://'}
 ];
-const MAX_RETRIES = 3;
-const BACKOFF_BASE_MS = 500;
+const MAX_RETRIES = 2;
+const BACKOFF_BASE_MS = 350;
 
 /* ── DOM ── */
 const metarTbody = document.getElementById('metar');
@@ -1379,11 +1379,18 @@ async function fetchWithTimeout(url,timeout=REQUEST_TIMEOUT_MS,opts={}){
   try{ const r=await fetch(url,Object.assign({cache:'no-store',mode:'cors',signal:ctrl.signal},opts)); clearTimeout(id); return r; }
   catch(e){ clearTimeout(id); throw e; }
 }
+/* Race the direct URL and several CORS proxies in parallel; the first source
+   that returns a non-empty body wins. Far quicker than trying them one after
+   another (a slow/failed source no longer blocks the rest). */
 async function robustFetchText(url){
-  try{ const r=await fetchWithTimeout(url,REQUEST_TIMEOUT_MS); if(r&&r.ok){const t=await r.text();if(t&&t.trim())return{ok:true,text:t.trim()};} }catch(e){}
-  try{ const p=FALLBACKS[0].prefix+encodeURIComponent(url),r=await fetchWithTimeout(p,REQUEST_TIMEOUT_MS); if(r&&r.ok){const j=await r.json();if(j&&typeof j.contents==='string'&&j.contents.trim())return{ok:true,text:j.contents.trim()};} }catch(e){}
-  try{ const p2=FALLBACKS[1].prefix+url.replace(/^https?:\/\//,''),r2=await fetchWithTimeout(p2,REQUEST_TIMEOUT_MS*2); if(r2&&r2.ok){const t2=await r2.text();if(t2&&t2.trim())return{ok:true,text:t2.trim()};} }catch(e){}
-  return{ok:false,error:'no content'};
+  const RACE=8000;
+  const direct=async()=>{ const r=await fetchWithTimeout(url,RACE); if(!r||!r.ok)throw 0; const t=await r.text(); if(!t||!t.trim())throw 0; return{ok:true,text:t.trim()}; };
+  const alloRaw=async()=>{ const r=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(url),RACE); if(!r||!r.ok)throw 0; const t=await r.text(); if(!t||!t.trim())throw 0; return{ok:true,text:t.trim()}; };
+  const alloJson=async()=>{ const r=await fetchWithTimeout(FALLBACKS[0].prefix+encodeURIComponent(url),RACE); if(!r||!r.ok)throw 0; const j=await r.json(); if(!j||typeof j.contents!=='string'||!j.contents.trim())throw 0; return{ok:true,text:j.contents.trim()}; };
+  const cors=async()=>{ const r=await fetchWithTimeout('https://corsproxy.io/?url='+encodeURIComponent(url),RACE); if(!r||!r.ok)throw 0; const t=await r.text(); if(!t||!t.trim())throw 0; return{ok:true,text:t.trim()}; };
+  const jina=async()=>{ const r=await fetchWithTimeout(FALLBACKS[1].prefix+url.replace(/^https?:\/\//,''),RACE+4000); if(!r||!r.ok)throw 0; const t=await r.text(); if(!t||!t.trim())throw 0; return{ok:true,text:t.trim()}; };
+  try{ return await firstResolved([direct(),alloRaw(),alloJson(),cors(),jina()]); }
+  catch(e){ return{ok:false,error:'no content'}; }
 }
 async function fetchWithRetries(url,attempts=MAX_RETRIES){
   let lastErr=null;
