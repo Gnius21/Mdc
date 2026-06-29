@@ -1906,11 +1906,13 @@ function recordKnmiSample(){
   try{ localStorage.setItem(KNMI_HIST_KEY, JSON.stringify(hist)); }catch(e){}
 }
 
-/* Fetch Open-Meteo hourly for a given model (empty = best-available). */
+/* Fetch Open-Meteo hourly for a given model (empty = best-available).
+   past_days=1 so the model also returns the previous hours, used to fill the
+   history line where no real KNMI sample has been recorded yet. */
 async function fetchOpenMeteoHourly(model){
   const url='https://api.open-meteo.com/v1/forecast?latitude='+KNMI_LAT+'&longitude='+KNMI_LON+
     '&hourly=temperature_2m,relative_humidity_2m,dew_point_2m,apparent_temperature,precipitation,surface_pressure,cloud_cover,wind_speed_10m,wind_gusts_10m'+
-    '&forecast_days=2&timezone=UTC&wind_speed_unit=kn'+(model?('&models='+model):'');
+    '&past_days=1&forecast_days=2&timezone=UTC&wind_speed_unit=kn'+(model?('&models='+model):'');
   const j=await fetchJsonWithFallback(url);
   return (j&&j.hourly&&j.hourly.time)?j.hourly:null;
 }
@@ -2020,10 +2022,12 @@ async function loadKnmiCharts(){
     const obs=[], fc=[];
     offsets.forEach(function(o){
       const hb=nowH+o;
-      // Observed line: recorded history for the past, current obs for "now".
+      // Observed line: real recorded sample if we have one, else fall back to
+      // the model's value for that past hour so the history line still draws.
       let ov=null;
-      if(o<0){ const s=histMap[hb]; ov = s? s[c.hk] : null; }
-      else if(o===0){ ov = (nowObs[c.hk]!=null)? nowObs[c.hk] : (histMap[hb]? histMap[hb][c.hk] : null); }
+      function modelAt(h){ if(!haveFc) return null; const i=fcIdxByHb[h]; if(i==null) return null; const arr=Hf[c.fk]; return arr&&arr[i]!=null&&isFinite(arr[i])?arr[i]:null; }
+      if(o<0){ const s=histMap[hb]; ov = (s&&s[c.hk]!=null)? s[c.hk] : modelAt(hb); }
+      else if(o===0){ ov = (nowObs[c.hk]!=null)? nowObs[c.hk] : ((histMap[hb]&&histMap[hb][c.hk]!=null)? histMap[hb][c.hk] : modelAt(hb)); }
       obs.push(ov!=null&&isFinite(ov)?ov:null);
       // Forecast line: HARMONIE from now forward.
       let fv=null;
@@ -2034,9 +2038,8 @@ async function loadKnmiCharts(){
   });
 
   const subEl=document.querySelector('.knmi-charts-head .knmi-charts-sub');
-  if(subEl) subEl.textContent='(observed = recorded hourly · forecast = '+src+' · ◆ live obs)';
-  const recorded=hist.filter(function(s){return s.hb<nowH;}).length;
-  wrap.innerHTML = out || ('<div class="knmi-charts-loading">Building history… '+recorded+'h of observations recorded so far. The past-6h line fills in one point per hour as the page stays open / is revisited.</div>');
+  if(subEl) subEl.textContent='(history = recorded obs, model-filled · forecast = '+src+' · ◆ live obs)';
+  wrap.innerHTML = out || '<div class="knmi-charts-loading">Trend data unavailable (forecast service unreachable).</div>';
   wrap.dataset.loaded='1';
 }
 
