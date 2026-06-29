@@ -41,7 +41,7 @@
   --radius-lg:14px;
   --shadow:0 16px 40px rgba(0,0,0,0.55);
   --shadow-sm:0 4px 16px rgba(0,0,0,0.35);
-  --widget-width:600px;
+  --widget-width:820px;
   --mono:'Space Mono', ui-monospace, monospace;
   --sans:'Barlow', system-ui, sans-serif;
   --cond:'Barlow Condensed', system-ui, sans-serif;
@@ -151,24 +151,27 @@ body::after{
    The iframe is over-sized inside an overflow:hidden box and shifted up so the
    Windy logo/legend/timeline (bottom) and zoom/overlay controls (top) are
    clipped — only the map data stays visible. */
-.windy-widget{display:grid;grid-template-columns:1fr 1fr;gap:10px;--windy-h:275px;}
+.windy-widget{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;--windy-h:275px;}
 .windy-box{
   position:relative;border-radius:12px;overflow:hidden;
   border:1px solid var(--border-bright);background:rgba(6,24,42,0.6);
   box-shadow:var(--shadow);
-  height:var(--windy-h);
+  height:var(--windy-h);display:block;
 }
 .windy-box iframe{
   position:absolute;left:0;top:-42px;border:0;
   width:100%;height:calc(var(--windy-h) + 42px + 56px);
 }
+.windy-link{cursor:pointer;text-decoration:none;transition:border-color .15s,box-shadow .15s;}
+.windy-link iframe{pointer-events:none;}
+.windy-link:hover{border-color:var(--accent);box-shadow:0 0 0 1px rgba(85,193,255,0.3),0 6px 18px rgba(0,0,0,0.35);}
 .windy-lbl{
   position:absolute;top:6px;left:6px;z-index:2;pointer-events:none;
   font-family:var(--cond);font-size:10px;font-weight:700;letter-spacing:0.6px;
   text-transform:uppercase;color:#d0e8ff;background:rgba(2,8,18,0.72);
   padding:3px 7px;border-radius:6px;
 }
-@media(max-width:960px){.windy-widget{--windy-h:200px;}}
+@media(max-width:960px){.windy-widget{--windy-h:185px;grid-template-columns:1fr 1fr;}.windy-link{grid-column:1/-1;}}
 
 /* ── WIDGET ── */
 .weather-widget{
@@ -985,6 +988,11 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <iframe title="Windy radar — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
           src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </div>
+      <a class="windy-box windy-link" href="https://www.windy.com/-Rain-thunder-rain?aromeAntilles,rain,15.174,-68.246,6,i:pressure,p:radiosonde" target="_blank" rel="noopener" title="Open full Windy — AROME Antilles rain &amp; thunder">
+        <span class="windy-lbl">🌧 Rain/Thunder · Antilles ↗</span>
+        <iframe title="Windy AROME rain — Antilles" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1"
+          src="https://embed.windy.com/embed2.html?lat=15.174&lon=-68.246&detailLat=15.174&detailLon=-68.246&zoom=6&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+      </a>
     </div>
     <!-- Vis Widget (hidden — kept so the visibility code keeps running; value shows in the weather bar) -->
     <div class="weather-widget hidden" id="bonaire-vis-widget" tabindex="0" aria-live="polite" role="region" aria-label="Bonaire visibility" aria-hidden="true">
