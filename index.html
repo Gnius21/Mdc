@@ -790,8 +790,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   background:rgba(6,24,42,0.6);border:1px solid var(--border);backdrop-filter:blur(8px);
 }
 .weather-bar.hidden{display:none;}
+.wb-head{display:flex;align-items:baseline;gap:8px;white-space:nowrap;flex-shrink:0;}
 .wb-title{font-family:var(--cond);font-weight:800;font-size:13px;letter-spacing:1px;color:var(--accent);text-transform:uppercase;white-space:nowrap;}
-.wb-items{display:flex;flex-wrap:wrap;gap:8px 18px;flex:1;}
+.wb-items{display:flex;flex-wrap:wrap;gap:6px 16px;flex:1;}
 .wb-item{display:flex;align-items:baseline;gap:6px;}
 .wb-item .l{font-family:var(--cond);font-size:9px;letter-spacing:0.9px;text-transform:uppercase;color:var(--muted);}
 .wb-item .v{font-family:var(--mono);font-size:15px;font-weight:700;color:#d0e8ff;}
@@ -1036,9 +1037,8 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 
   <!-- ═══ LIVE WEATHER BAR (KNMI Bonaire) ═══ -->
   <div id="weatherBar" class="weather-bar hidden" role="region" aria-label="Current Bonaire weather">
-    <span class="wb-title">🇧🇶 Bonaire Now</span>
+    <span class="wb-head"><span class="wb-title">🇧🇶 Bonaire Now</span><span class="wb-time" id="weatherBarTime"></span></span>
     <span class="wb-items" id="weatherBarItems"></span>
-    <span class="wb-time" id="weatherBarTime"></span>
   </div>
 
   <!-- ═══ SETTINGS MODAL ═══ -->
@@ -1867,7 +1867,7 @@ function renderWeatherBar(){
     items.push('<span class="wb-item wb-vis"><span class="l">Vis</span><span class="v" style="color:'+vcol+'">'+vstr+'</span></span>');
   }
   itemsEl.innerHTML=items.join('');
-  if(timeEl) timeEl.textContent=n.time?('Obs '+n.time):'';
+  if(timeEl){ var tm=n.time?((String(n.time).match(/(\d{1,2}:\d{2})/)||[])[1]):null; timeEl.textContent=tm?(tm+'Z'):''; }
   bar.classList.remove('hidden');
 }
 
