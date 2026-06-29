@@ -3464,7 +3464,18 @@ window.__metarDashboard={refreshAllMetars,updateVisFromKnmi,loadAllTafs,loadAllS
 <script>
 (function(){
   if('serviceWorker' in navigator){
-    window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){}); });
+    window.addEventListener('load',function(){
+      var hadController = !!navigator.serviceWorker.controller;
+      navigator.serviceWorker.register('sw.js').then(function(reg){
+        reg.update();
+        setInterval(function(){ reg.update(); }, 60*60*1000); // hourly update check
+      }).catch(function(){});
+      var refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange',function(){
+        if(refreshing || !hadController) return; // skip the first-install claim
+        refreshing=true; window.location.reload();
+      });
+    });
   }
   var deferredPrompt=null;
   var btn=document.getElementById('install-btn');
