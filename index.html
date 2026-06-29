@@ -1228,6 +1228,28 @@ const FALLBACKS = [
 const MAX_RETRIES = 2;
 const BACKOFF_BASE_MS = 350;
 
+/* ── RAW DATA CACHE (instant paint on revisit) ──
+   Persist the last good raw METAR/TAF/SYNOP so a returning visitor sees data
+   immediately while fresh reports load in the background. */
+const RAW_CACHE_KEY='rwc-rawcache-v1';
+const RAW_CACHE_MAXAGE=6*3600*1000; // ignore cached data older than 6h
+let __rawCache;
+try{ __rawCache=JSON.parse(localStorage.getItem(RAW_CACHE_KEY))||{}; }catch(e){ __rawCache={}; }
+if(!__rawCache.metar)__rawCache.metar={};
+if(!__rawCache.taf)__rawCache.taf={};
+if(!__rawCache.synop)__rawCache.synop={};
+function persistRawCache(){ try{ localStorage.setItem(RAW_CACHE_KEY,JSON.stringify(__rawCache)); }catch(e){} }
+function cacheRaw(kind,key,raw){ if(!raw||!__rawCache[kind])return; __rawCache[kind][String(key)]={raw:raw,ts:Date.now()}; persistRawCache(); }
+function primeFromCache(){
+  const fresh=v=>v&&v.raw&&(Date.now()-(v.ts||0))<RAW_CACHE_MAXAGE;
+  window.__suppressAlarms=true; // don't beep/alarm on cached paint
+  try{ Object.keys(__rawCache.metar).forEach(icao=>{ const v=__rawCache.metar[icao]; if(fresh(v)&&STATIONS.indexOf(icao)>=0){ try{renderMetar(icao,v.raw);}catch(e){} } }); }catch(e){}
+  try{ Object.keys(__rawCache.taf).forEach(icao=>{ const v=__rawCache.taf[icao]; if(fresh(v)){ try{renderTafRow(icao,v.raw);}catch(e){} } }); }catch(e){}
+  try{ Object.keys(__rawCache.synop).forEach(idx=>{ const v=__rawCache.synop[idx]; if(fresh(v)){ try{renderSynopRow(parseInt(idx,10),v.raw);}catch(e){} } }); }catch(e){}
+  window.__suppressAlarms=false;
+  try{ checkSpeci(); }catch(e){}
+}
+
 /* ── DOM ── */
 const metarTbody = document.getElementById('metar');
 const tafTbody = document.getElementById('taf');
@@ -2185,7 +2207,7 @@ function renderMetar(icao,raw){
     const tsPresent=/\b(?:TS|TSRA|VCTS)\b/i.test(parsed.wx);
     const cloudFlag=isCloudGroupWithCbTcu(parsed.cld);
     const wxCritical=setWxCritical(tds[4],parsed.wx);
-    if(isNew&&SETTINGS.beepOnUpdate){playBeep();}
+    if(isNew&&SETTINGS.beepOnUpdate&&!window.__suppressAlarms){playBeep();}
     if(isNew){markTimeUpdated(icao);pushSessionHistory(icao,state.lastRaw,parsed);}
     if(windHasGust&&isNew)tds[2].classList.add('alert');
     if(!isNaN(parsed.visMin)&&parsed.visMin<=SETTINGS.visAlertM)tds[3].classList.add('alert');
@@ -2194,7 +2216,7 @@ function renderMetar(icao,raw){
     // ── SPECIAL ALARM ── per-station: enabled + gust threshold + optional TS. Sounds twice + browser notification.
     const acfg=SETTINGS.stations[icao];
     const isSpecialAlarmCondition=!!(acfg&&acfg.alarm&&gustValue>=acfg.gust&&(!acfg.requireTS||tsPresent));
-    if(isNew&&isSpecialAlarmCondition){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
+    if(isNew&&isSpecialAlarmCondition&&!window.__suppressAlarms){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
     if(typeof windSpeed==='number'){state.stats.winds.push(windSpeed);if(state.stats.winds.length>200)state.stats.winds.shift();}
     if(parsed.td&&typeof parsed.td==='string'){const m=parsed.td.match(/^(M?)(\d{1,2})\/(M?)(\d{1,2})$/);if(m){const sign=m[1]==='M'?-1:1;const tempVal=sign*parseInt(m[2],10);state.stats.temps.push(tempVal);if(state.stats.temps.length>200)state.stats.temps.shift();}}
     if(!isNaN(parsed.visMin)){state.stats.vis.push(parsed.visMin);if(state.stats.vis.length>200)state.stats.vis.shift();}
@@ -2212,7 +2234,7 @@ async function fetchMetarFor(icao){
       const ln=lines[i];
       if(ln.startsWith(icao)||/\b\d{6}Z\b/.test(ln)||/^[A-Z]{4}\s+\d{6}Z/.test(ln)){
         if((icao==='SVMI'||icao==='SVVA')&&/\bAUTO\b/i.test(ln))continue;
-        renderMetar(icao,ln);return true;
+        renderMetar(icao,ln);cacheRaw('metar',icao,ln);return true;
       }
     }
     return false;
@@ -2461,6 +2483,7 @@ async function loadTafRow(icao){
     const out=await fetchWithRetries(url,MAX_RETRIES);
     if(out&&out.ok&&out.text){
       renderTafRow(icao, out.text);
+      cacheRaw('taf',icao,out.text);
       const local=formatLocalDateTimeParts();
       if(tafUpdatedEl)tafUpdatedEl.textContent=`TAF last updated: ${local.date} ${local.time}`;
     }
@@ -2973,6 +2996,7 @@ async function loadSynopRow(index,url){
     const out=await fetchWithRetries(url,MAX_RETRIES);
     if(out&&out.ok&&out.text){
       renderSynopRow(index,out.text);
+      cacheRaw('synop',index,out.text);
       const local=formatLocalDateTimeParts();
       if(synopUpdatedEl)synopUpdatedEl.textContent=`SYNOP last updated: ${local.date} ${local.time}`;
     }
@@ -3416,6 +3440,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 /* ── INIT ── */
 (async function init(){
   try{
+    primeFromCache(); // instant paint from last-known data while fresh reports load
     await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops(),loadKnmiData()]);
     const anyData=STATIONS.some(icao=>metarState[icao]&&metarState[icao].lastRaw);
     if(!anyData){
