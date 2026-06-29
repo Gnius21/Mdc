@@ -163,7 +163,8 @@ body::after{
   width:100%;height:calc(var(--windy-h) + 42px + 56px);
 }
 .windy-link{cursor:pointer;text-decoration:none;transition:border-color .15s,box-shadow .15s;}
-.windy-link iframe{pointer-events:none;}
+/* Rain window: crop the top controls but keep the bottom timeline (time table) visible. */
+.windy-link iframe{pointer-events:none;top:-42px;height:calc(var(--windy-h) + 42px);}
 .windy-link:hover{border-color:var(--accent);box-shadow:0 0 0 1px rgba(85,193,255,0.3),0 6px 18px rgba(0,0,0,0.35);}
 .windy-lbl{
   position:absolute;top:6px;left:6px;z-index:2;pointer-events:none;
@@ -988,10 +989,10 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <iframe title="Windy radar — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
           src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </div>
-      <a class="windy-box windy-link" href="https://www.windy.com/-Rain-thunder-rain?aromeAntilles,rain,12.35,-69.10,8,i:pressure,p:radiosonde" target="_blank" rel="noopener" title="Open full Windy — AROME Antilles rain &amp; thunder (ABC islands)">
+      <a class="windy-box windy-link" href="https://www.windy.com/-Rain-thunder-rain?aromeAntilles,rain,12.45,-69.30,7,i:pressure,p:radiosonde" target="_blank" rel="noopener" title="Open full Windy — AROME Antilles rain &amp; thunder (ABC islands)">
         <span class="windy-lbl">🌧 Rain/Thunder · ABC ↗</span>
         <iframe title="Windy AROME rain — ABC islands" loading="lazy" referrerpolicy="no-referrer-when-downgrade" tabindex="-1"
-          src="https://embed.windy.com/embed2.html?lat=12.35&lon=-69.10&detailLat=12.35&detailLon=-69.10&zoom=8&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+          src="https://embed.windy.com/embed2.html?lat=12.45&lon=-69.30&detailLat=12.45&detailLon=-69.30&zoom=7&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </a>
     </div>
     <!-- Vis Widget (hidden — kept so the visibility code keeps running; value shows in the weather bar) -->
