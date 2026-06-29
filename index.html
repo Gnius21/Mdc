@@ -41,7 +41,7 @@
   --radius-lg:14px;
   --shadow:0 16px 40px rgba(0,0,0,0.55);
   --shadow-sm:0 4px 16px rgba(0,0,0,0.35);
-  --widget-width:380px;
+  --widget-width:520px;
   --mono:'Space Mono', ui-monospace, monospace;
   --sans:'Barlow', system-ui, sans-serif;
   --cond:'Barlow Condensed', system-ui, sans-serif;
@@ -147,21 +147,28 @@ body::after{
 /* ── TOP ROW ── */
 .top-row{width:100%;max-width:100%;display:grid;grid-template-columns:var(--widget-width) 1fr auto;align-items:center;gap:14px;}
 
-/* ── WINDY MAPS (satellite + radar, Curaçao) ── */
-.windy-widget{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+/* ── WINDY MAPS (satellite + radar, Curaçao) ──
+   The iframe is over-sized inside an overflow:hidden box and shifted up so the
+   Windy logo/legend/timeline (bottom) and zoom/overlay controls (top) are
+   clipped — only the map data stays visible. */
+.windy-widget{display:grid;grid-template-columns:1fr 1fr;gap:10px;--windy-h:230px;}
 .windy-box{
   position:relative;border-radius:12px;overflow:hidden;
   border:1px solid var(--border-bright);background:rgba(6,24,42,0.6);
   box-shadow:var(--shadow);
+  height:var(--windy-h);
 }
-.windy-box iframe{display:block;width:100%;height:150px;border:0;}
+.windy-box iframe{
+  position:absolute;left:0;top:-42px;border:0;
+  width:100%;height:calc(var(--windy-h) + 42px + 56px);
+}
 .windy-lbl{
   position:absolute;top:6px;left:6px;z-index:2;pointer-events:none;
   font-family:var(--cond);font-size:10px;font-weight:700;letter-spacing:0.6px;
   text-transform:uppercase;color:#d0e8ff;background:rgba(2,8,18,0.72);
   padding:3px 7px;border-radius:6px;
 }
-@media(max-width:960px){.windy-box iframe{height:170px;}}
+@media(max-width:960px){.windy-widget{--windy-h:175px;}}
 
 /* ── WIDGET ── */
 .weather-widget{
