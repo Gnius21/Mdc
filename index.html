@@ -3462,16 +3462,26 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
 });
 
 /* ── VENTUSKY precipitation (HARMONIE Caribbean), started 3h in the future ── */
-function setVentuskyFrame(){
-  var f=document.getElementById('ventuskyFrame');
-  if(!f) return;
+function ventuskySrc(){
   var d=new Date(Date.now()+3*3600*1000); // +3h
   function p(n){return (n<10?'0':'')+n;}
   var t=''+d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+p(d.getUTCHours())+'00'; // YYYYMMDDHHMM UTC
-  var src='https://embed.ventusky.com/?p=11.60;-68.93;8&l=rain&m=harmonie_car&t='+t;
-  if(f.getAttribute('src')!==src) f.setAttribute('src',src);
+  return 'https://embed.ventusky.com/?p=11.60;-68.93;6&l=rain&m=harmonie_car&t='+t; // l=rain = precipitation
+}
+function setVentuskyFrame(){
+  var f=document.getElementById('ventuskyFrame');
+  if(f) f.setAttribute('src', ventuskySrc());
 }
 setVentuskyFrame();
+
+/* Auto-refresh all map windows so radar/satellite/precip stay current. */
+function refreshMapWindows(){
+  document.querySelectorAll('.windy-widget iframe').forEach(function(f){
+    if(f.id==='ventuskyFrame'){ f.setAttribute('src', ventuskySrc()); return; }
+    var s=f.getAttribute('src'); if(s) f.setAttribute('src', s); // re-assign forces a reload
+  });
+}
+setInterval(refreshMapWindows, 10*60*1000); // every 10 minutes
 
 /* ── INIT ── */
 (async function init(){
