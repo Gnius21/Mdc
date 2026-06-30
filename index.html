@@ -3466,7 +3466,7 @@ function ventuskySrc(){
   var d=new Date(Date.now()+3*3600*1000); // +3h
   function p(n){return (n<10?'0':'')+n;}
   var t=''+d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+p(d.getUTCHours())+'00'; // YYYYMMDDHHMM UTC
-  return 'https://embed.ventusky.com/?p=11.60;-68.93;6&l=rain&m=harmonie_car&t='+t; // l=rain = precipitation
+  return 'https://embed.ventusky.com/?p=11.60;-68.93;5&l=rain-3h&m=harmonie_car&t='+t; // l=rain-3h = 3h precipitation
 }
 function setVentuskyFrame(){
   var f=document.getElementById('ventuskyFrame');
