@@ -1369,28 +1369,57 @@ function playSpecialAlarm(force){
 
 /* ── BROWSER NOTIFICATIONS ── */
 let notificationsEnabled=false;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+function isStandalone(){ return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true; }
+/* Show a notification. iOS installed web apps require the service worker's
+   showNotification(); desktop/Android also accept the Notification constructor. */
+async function showAppNotification(title, opts){
+  try{
+    if('serviceWorker' in navigator){
+      const reg = await Promise.race([navigator.serviceWorker.ready, new Promise(r=>setTimeout(()=>r(null),1500))]);
+      if(reg && reg.showNotification){ await reg.showNotification(title, opts); return true; }
+    }
+  }catch(e){}
+  try{ if('Notification' in window){ new Notification(title, opts); return true; } }catch(e){}
+  return false;
+}
 function updateNotifyButton(){
   const b=document.getElementById('notify-btn');
   if(!b)return;
+  b.style.color='';
   if(!('Notification' in window)){
-    b.textContent='🔔 Not Supported';b.disabled=true;b.setAttribute('aria-pressed','false');return;
+    if(isIOS && !isStandalone()){
+      // iOS supports web notifications only for Home-Screen–installed apps (16.4+)
+      b.textContent='🔔 Install for alerts';b.disabled=false;b.setAttribute('aria-pressed','false');
+      b.title='On iPhone/iPad: Share → Add to Home Screen, then open the app to enable alerts (requires iOS 16.4+).';
+    } else {
+      b.textContent='🔔 Not Supported';b.disabled=true;b.setAttribute('aria-pressed','false');
+    }
+    return;
   }
   if(Notification.permission==='denied'){
-    b.textContent='🔕 Blocked';b.setAttribute('aria-pressed','false');b.title='Notifications were blocked in browser settings';return;
+    b.textContent='🔕 Blocked';b.setAttribute('aria-pressed','false');b.title='Notifications were blocked in browser/app settings';return;
   }
   b.textContent=notificationsEnabled?'🔔 Notify: On':'🔔 Notify: Off';
   b.setAttribute('aria-pressed',String(notificationsEnabled));
   b.style.color=notificationsEnabled?'var(--ok)':'var(--accent)';
 }
 async function toggleNotifications(){
-  if(!('Notification' in window)){updateNotifyButton();return;}
+  if(!('Notification' in window)){
+    if(isIOS && !isStandalone()){
+      alert('To get alerts on iPhone/iPad:\n\n1. Tap the Share button in Safari\n2. Choose “Add to Home Screen”\n3. Open the app from your Home Screen, then tap 🔔 to enable.\n\n(Requires iOS/iPadOS 16.4 or later.)');
+    }
+    updateNotifyButton();return;
+  }
   if(!notificationsEnabled){
     let perm=Notification.permission;
     if(perm==='default'){try{perm=await Notification.requestPermission();}catch(e){}}
     if(perm==='granted'){
       notificationsEnabled=true;
       try{localStorage.setItem('rwc-notify-enabled','1');}catch(e){}
-      try{const on=STATIONS.filter(ic=>SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);const st=on.length?on.join(', '):'no stations (enable in ⚙ Settings)';new Notification('Regional Weather Centre',{body:`Notifications enabled — alarms active for: ${st}. Adjust per-station thresholds in ⚙ Settings.`,icon:undefined,silent:false});}catch(e){}
+      const on=STATIONS.filter(ic=>SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);
+      const st=on.length?on.join(', '):'no stations (enable in ⚙ Settings)';
+      showAppNotification('Regional Weather Centre',{body:`Notifications enabled — alarms active for: ${st}. Adjust per-station thresholds in ⚙ Settings.`,icon:'icon-192.png',badge:'icon-192.png'});
     }
   } else {
     notificationsEnabled=false;
@@ -1400,15 +1429,14 @@ async function toggleNotifications(){
 }
 function sendAlarmNotification(icao,parsed){
   if(!notificationsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
-  try{
-    const n=new Notification(`⚠ Special Alarm — ${icao}`,{
-      body:`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,
-      tag:`special-alarm-${icao}`,
-      requireInteraction:true,
-      silent:false
-    });
-    n.onclick=()=>{try{window.focus();}catch(e){}n.close();};
-  }catch(e){console.warn('Notification failed',e);}
+  showAppNotification(`⚠ Special Alarm — ${icao}`,{
+    body:`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,
+    tag:`special-alarm-${icao}`,
+    requireInteraction:true,
+    silent:false,
+    icon:'icon-192.png',
+    badge:'icon-192.png'
+  });
 }
 try{
   if(localStorage.getItem('rwc-notify-enabled')==='1'&&'Notification' in window&&Notification.permission==='granted'){

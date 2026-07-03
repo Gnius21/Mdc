@@ -1,5 +1,5 @@
 /* Regional Weather Centre — service worker (app-shell cache, live data passthrough) */
-const CACHE = 'rwc-shell-v2';
+const CACHE = 'rwc-shell-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -39,5 +39,16 @@ self.addEventListener('fetch', e => {
         return res;
       })
       .catch(() => caches.match(req).then(r => r || caches.match('./index.html')))
+  );
+});
+
+// Focus (or open) the app when a notification is tapped.
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      for (const c of list) { if ('focus' in c) return c.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow('./');
+    })
   );
 });
