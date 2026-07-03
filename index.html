@@ -632,6 +632,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   0%,100%{filter:drop-shadow(0 0 5px rgba(85,193,255,0.65)) drop-shadow(0 0 11px rgba(85,193,255,0.4));}
   50%{filter:drop-shadow(0 0 10px rgba(120,205,255,1)) drop-shadow(0 0 22px rgba(85,193,255,0.75));}
 }
+.metar-flag{display:inline-block;margin-right:9px;font-size:1.05em;line-height:1;vertical-align:middle;animation:tafFlagGlow 3s ease-in-out infinite;}
 .taf-card-id{display:flex;flex-direction:column;gap:2px;min-width:0;}
 .taf-icao{font-family:var(--cond);font-size:23px;font-weight:800;letter-spacing:1.5px;color:var(--accent);line-height:1;}
 .taf-name{font-size:11px;color:var(--muted);letter-spacing:0.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -1236,6 +1237,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 
 /* ── CONFIG ── */
 const STATIONS = ['TNCA','TNCB','TNCC','TNCM','SVMI','SVVA'];
+const STATION_FLAGS = {TNCA:'🇦🇼',TNCB:'🇧🇶',TNCC:'🇨🇼',TNCM:'🇸🇽',SVMI:'🇻🇪',SVVA:'🇻🇪'};
 const METAR_TEMPLATE = 'https://tgftp.nws.noaa.gov/data/observations/metar/stations/{ICAO}.TXT';
 const TAF_TEMPLATE = 'https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/{ICAO}.TXT';
 const KNMI_BONAIRE_URL = 'https://www.knmidc.org/weather/bonaire/?Current';
@@ -2142,7 +2144,7 @@ function buildMetarTable(){
     tr.dataset.icao=icao;
     const rr=document.createElement('tr');
     rr.className='raw';
-    tr.innerHTML=`<td class="station">${icao}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
+    tr.innerHTML=`<td class="station"><span class="metar-flag">${STATION_FLAGS[icao]||'🏳️'}</span>${icao}</td><td class="time">--</td><td class="wind">--</td><td>--</td><td class="wx">--</td><td class="clouds">--</td><td>--</td><td>--</td>`;
     rr.innerHTML=`<td colspan="8"><span class="raw-current"></span><span class="raw-past"></span></td>`;
 
     // History / forecast expandable row — lazily populated on first click
@@ -2446,7 +2448,6 @@ function sanitizeTextForDisplay(text){
 
 /* ── BUILD TAF CARDS ── */
 const TAF_ICAOS = STATIONS.slice(0,3); // TNCA, TNCB, TNCC
-const STATION_FLAGS = {TNCA:'🇦🇼',TNCB:'🇧🇶',TNCC:'🇨🇼',TNCM:'🇸🇽',SVMI:'🇻🇪',SVVA:'🇻🇪'};
 const tafDataStore={}; // icao -> last parsed TAF object, used by the METAR history/forecast panel
 
 function buildTafTable(){
