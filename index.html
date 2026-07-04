@@ -978,17 +978,17 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       <div class="windy-box">
         <span class="windy-lbl">🛰 Satellite · Curaçao</span>
         <iframe title="Windy satellite — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-          src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=satellite&product=satellite&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+          data-src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=satellite&product=satellite&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </div>
       <div class="windy-box">
         <span class="windy-lbl">📡 Radar · Curaçao</span>
         <iframe title="Windy radar — Curaçao" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-          src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+          data-src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=8&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=&pressure=&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </div>
       <div class="windy-box windy-rain">
         <span class="windy-lbl">🌧 Rain/Thunder · ABC</span>
         <iframe title="Windy AROME rain — ABC islands" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-          src="https://embed.windy.com/embed2.html?lat=12.55&lon=-69.40&detailLat=12.55&detailLon=-69.40&zoom=6&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
+          data-src="https://embed.windy.com/embed2.html?lat=12.55&lon=-69.40&detailLat=12.55&detailLon=-69.40&zoom=6&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1"></iframe>
       </div>
       <div class="windy-box ventusky-box">
         <span class="windy-lbl">🌧 Precip +3h · Ventusky</span>
@@ -3495,14 +3495,21 @@ function setVentuskyFrame(){
   var f=document.getElementById('ventuskyFrame');
   if(f) f.setAttribute('src', ventuskySrc());
 }
-setVentuskyFrame();
+/* Deferred load: the heavy map iframes only get their src after the data has
+   painted, so the initial load isn't slowed by four embedded map apps. */
+function loadMapWindows(){
+  document.querySelectorAll('.windy-widget iframe[data-src]').forEach(function(f){
+    if(!f.getAttribute('src')) f.setAttribute('src', f.getAttribute('data-src'));
+  });
+  setVentuskyFrame();
+}
 
 /* Auto-refresh all map windows so radar/satellite/precip stay current. */
 function refreshMapWindows(){
   if(document.hidden) return; // don't reload heavy iframes while backgrounded
   document.querySelectorAll('.windy-widget iframe').forEach(function(f){
     if(f.id==='ventuskyFrame'){ f.setAttribute('src', ventuskySrc()); return; }
-    var s=f.getAttribute('src'); if(s) f.setAttribute('src', s); // re-assign forces a reload
+    var s=f.getAttribute('src')||f.getAttribute('data-src'); if(s) f.setAttribute('src', s); // re-assign forces a reload
   });
 }
 setInterval(refreshMapWindows, 10*60*1000); // every 10 minutes
@@ -3523,6 +3530,9 @@ setInterval(refreshMapWindows, 10*60*1000); // every 10 minutes
     console.error('initialization error',e);
     testMode=true;startTestRunner();
     const b=document.getElementById('test-btn');if(b)b.textContent='⚗ Exit Test';
+  }finally{
+    // Load the heavy map iframes once the data has painted (idle if supported).
+    (window.requestIdleCallback||function(cb){return setTimeout(cb,1200);})(loadMapWindows);
   }
 })();
 
