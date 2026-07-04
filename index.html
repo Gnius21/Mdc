@@ -1778,11 +1778,17 @@ function propagateKnmi(){
 }
 
 /* Main loader — fetches via proxy, shows cached data first for fast paint */
+/* Charts pull Open-Meteo over the network — only do it when the KNMI tab is
+   actually on screen (opening the tab re-runs loadKnmiData). */
+function maybeLoadKnmiCharts(){
+  var sec = document.getElementById('knmiSection');
+  if(sec && !sec.classList.contains('hidden')) loadKnmiCharts();
+}
 async function loadKnmiData(force){
   var statusEl = byId('knmiStatus'), gridEl = byId('knmiGrid');
   if(!statusEl || !gridEl) return;
   statusEl.className = 'knmi-status';
-  statusEl.textContent = 'Loading live KNMI Bonaire observations…';
+  if(!window.__knmiData) statusEl.textContent = 'Loading live KNMI Bonaire observations…'; // avoid flashing over existing data on background refresh
 
   // Fast first paint: show last persisted page immediately while fetch runs.
   if(!force && !window.__knmiData){
@@ -1798,7 +1804,7 @@ async function loadKnmiData(force){
           if(sHtml) gridEl.innerHTML = sHtml;
           renderKnmiFeels();
           renderWeatherBar();
-          loadKnmiCharts();
+          maybeLoadKnmiCharts();
           statusEl.textContent = 'Showing cached data · refreshing…';
         }
       }
@@ -1821,7 +1827,7 @@ async function loadKnmiData(force){
     gridEl.innerHTML = html;
     renderKnmiFeels();
     renderWeatherBar();
-    loadKnmiCharts();
+    maybeLoadKnmiCharts();
     statusEl.className = 'knmi-status ok';
     statusEl.textContent = resp.stale
       ? '⚠ Cached KNMI data (offline) · ' + new Date(resp.cachedAt).toLocaleTimeString()
