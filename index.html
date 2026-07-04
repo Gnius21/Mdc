@@ -3089,7 +3089,7 @@ function stopTestRunner(){if(testInterval){clearInterval(testInterval);testInter
 
 /* ── EVENTS ── */
 document.getElementById('metar-refresh-btn')?.addEventListener('click',()=>refreshAllMetars());
-document.getElementById('refresh-btn')?.addEventListener('click',()=>{updateVisFromKnmi();refreshAllMetars();loadKnmiData(true);});
+document.getElementById('refresh-btn')?.addEventListener('click',()=>{refreshAllMetars();loadKnmiData(true);});
 document.getElementById('taf-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('taf-refresh-btn');btn.disabled=true;try{await loadAllTafs();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('synop-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('synop-refresh-btn');btn.disabled=true;try{await loadAllSynops();}catch(e){}setTimeout(()=>btn.disabled=false,800);});
 document.getElementById('knmi-refresh-btn')?.addEventListener('click',async()=>{const btn=document.getElementById('knmi-refresh-btn');btn.disabled=true;try{await loadKnmiData(true);}catch(e){}setTimeout(()=>btn.disabled=false,800);});
@@ -3199,7 +3199,7 @@ document.getElementById('metar')?.addEventListener('click',async e=>{
 
 /* ── INTERVALS ── */
 setInterval(()=>{if(!testMode)refreshAllMetars();},METAR_REFRESH_MS);
-setInterval(()=>{if(!testMode)updateVisFromKnmi();},VIS_REFRESH_MS);
+setInterval(()=>{if(!testMode&&!document.hidden)loadKnmiData();},5*60*1000); // refresh KNMI (weather bar + tiles + charts + history) every 5 min
 
 /* ════════════════════════════════════════
    STATIONS DASHBOARD
@@ -3499,6 +3499,7 @@ setVentuskyFrame();
 
 /* Auto-refresh all map windows so radar/satellite/precip stay current. */
 function refreshMapWindows(){
+  if(document.hidden) return; // don't reload heavy iframes while backgrounded
   document.querySelectorAll('.windy-widget iframe').forEach(function(f){
     if(f.id==='ventuskyFrame'){ f.setAttribute('src', ventuskySrc()); return; }
     var s=f.getAttribute('src'); if(s) f.setAttribute('src', s); // re-assign forces a reload
@@ -3510,7 +3511,7 @@ setInterval(refreshMapWindows, 10*60*1000); // every 10 minutes
 (async function init(){
   try{
     primeFromCache(); // instant paint from last-known data while fresh reports load
-    await Promise.allSettled([updateVisFromKnmi(),refreshAllMetars(),loadAllTafs(),loadAllSynops(),loadKnmiData()]);
+    await Promise.allSettled([refreshAllMetars(),loadAllTafs(),loadAllSynops(),loadKnmiData()]);
     const anyData=STATIONS.some(icao=>metarState[icao]&&metarState[icao].lastRaw);
     if(!anyData){
       console.warn('No live METAR data — activating test mode.');
