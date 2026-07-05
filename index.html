@@ -118,6 +118,65 @@
 :root.night .dot.ok{background:#28a060;box-shadow:0 0 4px #28a060;}
 :root.night .dot.warn{background:#cc3030;box-shadow:0 0 4px #cc3030;}
 
+/* ── PURPLE MODE (neon violet/cyan, from reference dashboard) ── */
+:root.purple{
+  --bg:#1b1035;
+  --panel:#241447;
+  --card:rgba(36,20,71,0.96);
+  --border:rgba(150,90,255,0.18);
+  --border-bright:rgba(180,120,255,0.3);
+  --text:#f2ecff;
+  --muted:#a99cd4;
+  --accent:#22d3ee;
+  --accent-strong:#a855f7;
+  --accent-dim:rgba(34,211,238,0.12);
+  --alert:#ff5f8f;
+  --alert-dim:rgba(255,95,143,0.1);
+  --ok:#2ee6a8;
+  --ok-dim:rgba(46,230,168,0.1);
+  --warn:#f5b342;
+  --glow-accent: 0 0 24px rgba(168,85,247,0.18);
+  --glow-alert: 0 0 20px rgba(255,95,143,0.2);
+  --shadow: 0 16px 40px rgba(10,4,30,0.75);
+  --shadow-sm: 0 4px 16px rgba(10,4,30,0.55);
+  --dashboard-blue:#3b1a7a;
+  --th-bg: rgba(30,16,60,0.97);
+  --raw-bg: rgba(22,12,44,0.85);
+  --statusbar-bg: rgba(22,12,44,0.6);
+  --table-card-bg: rgba(36,20,71,0.6);
+  --station-row-bg1: rgba(44,26,84,0.9);
+  --station-row-bg2: rgba(30,16,60,0.9);
+}
+:root.purple body::before{
+  background:
+    radial-gradient(ellipse 900px 500px at 10% 0%, rgba(168,85,247,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 400px at 90% 80%, rgba(34,211,238,0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 400px 300px at 50% 40%, rgba(120,60,220,0.06) 0%, transparent 60%);
+}
+:root.purple .widget-head{background:linear-gradient(90deg,rgba(168,85,247,0.25),rgba(34,211,238,0.08));}
+:root.purple .weather-widget::before,
+:root.purple .section-title::before{background:linear-gradient(90deg,#22d3ee,#a855f7,transparent);}
+:root.purple .btn-primary{
+  background:linear-gradient(135deg,rgba(34,211,238,0.85),rgba(168,85,247,0.85));
+  border-color:rgba(180,120,255,0.4);
+  box-shadow:0 4px 14px rgba(168,85,247,0.3),inset 0 1px 0 rgba(255,255,255,0.12);
+}
+:root.purple .btn-primary:hover{background:linear-gradient(135deg,rgba(34,211,238,0.95),rgba(168,85,247,0.95));box-shadow:0 6px 20px rgba(168,85,247,0.45);}
+:root.purple .tab-btn.active{
+  background:linear-gradient(135deg,rgba(34,211,238,0.18),rgba(168,85,247,0.22));color:#22d3ee;
+  box-shadow:0 0 0 1px rgba(168,85,247,0.35),0 2px 10px rgba(168,85,247,0.25);
+}
+:root.purple .clock-time{text-shadow:0 0 20px rgba(34,211,238,0.35);}
+:root.purple .station-name,:root.purple td.station{color:#22d3ee;}
+:root.purple .pill span{color:#22d3ee;}
+:root.purple .time-updated{background:rgba(168,85,247,0.25) !important;}
+:root.purple .synop-card::before,:root.purple .knmi-tile::before{background:linear-gradient(90deg,#22d3ee,#a855f7,transparent);}
+:root.purple .taf-flag,:root.purple .metar-flag{animation-name:purpleFlagGlow;}
+@keyframes purpleFlagGlow{
+  0%,100%{filter:drop-shadow(0 0 5px rgba(168,85,247,0.7)) drop-shadow(0 0 11px rgba(34,211,238,0.4));}
+  50%{filter:drop-shadow(0 0 10px rgba(34,211,238,1)) drop-shadow(0 0 22px rgba(168,85,247,0.8));}
+}
+
 html,body,
 .weather-widget,.table-card,.stations-card,.station-row,
 th,td,.btn-ghost,.btn-primary,.status-bar,.pill,
@@ -3174,15 +3233,30 @@ document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=JS
 document.getElementById('set-vol')?.addEventListener('input',e=>{ const v=document.getElementById('set-vol-val'); if(v) v.textContent=e.target.value+'%'; });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
 document.getElementById('test-btn')?.addEventListener('click',()=>{testMode=!testMode;const b=document.getElementById('test-btn');if(b)b.textContent=testMode?'⚗ Exit Test':'⚗ Test Mode';if(testMode)startTestRunner();else stopTestRunner();});
+/* Theme cycle: day → night → purple → day */
+const THEMES=['day','night','purple'];
+function applyTheme(theme){
+  const root=document.documentElement,b=document.getElementById('night-btn');
+  root.classList.remove('night','purple');
+  if(theme==='night')root.classList.add('night');
+  else if(theme==='purple')root.classList.add('purple');
+  if(b){
+    b.setAttribute('aria-pressed',String(theme!=='day'));
+    if(theme==='night'){b.textContent='🔮 Purple';b.style.color='#f59e0b';b.title='Switch to Purple theme';}
+    else if(theme==='purple'){b.textContent='☀ Day';b.style.color='#a855f7';b.title='Switch to Day theme';}
+    else{b.textContent='🌙 Night';b.style.color='var(--accent)';b.title='Switch to Night theme';}
+  }
+  try{localStorage.setItem('rwc-theme',theme);}catch(e){}
+}
 document.getElementById('night-btn')?.addEventListener('click',()=>{
-  const b=document.getElementById('night-btn');
-  const isNight=document.documentElement.classList.toggle('night');
-  b.setAttribute('aria-pressed',String(isNight));
-  b.textContent=isNight?'☀ Day':'🌙 Night';
-  b.style.color=isNight?'#f59e0b':'var(--accent)';
-  try{localStorage.setItem('rwc-night-mode',isNight?'1':'0');}catch(e){}
+  const cur=document.documentElement.classList.contains('purple')?'purple':document.documentElement.classList.contains('night')?'night':'day';
+  applyTheme(THEMES[(THEMES.indexOf(cur)+1)%THEMES.length]);
 });
-try{if(localStorage.getItem('rwc-night-mode')==='1'){document.documentElement.classList.add('night');const b=document.getElementById('night-btn');if(b){b.setAttribute('aria-pressed','true');b.textContent='☀ Day';b.style.color='#f59e0b';}}}catch(e){}
+try{
+  let savedTheme=localStorage.getItem('rwc-theme');
+  if(!savedTheme&&localStorage.getItem('rwc-night-mode')==='1')savedTheme='night'; // migrate old key
+  if(savedTheme&&savedTheme!=='day')applyTheme(savedTheme);
+}catch(e){}
 
 /* Copy on click */
 document.getElementById('metar')?.addEventListener('click',async e=>{
