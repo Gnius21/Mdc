@@ -1069,6 +1069,26 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   #taf-table td{font-size:13px;padding:10px 10px;}
   #taf-table td.station{font-size:17px;}
 }
+/* Phone-size typography: tighter table, inline flag, no overflow */
+@media(max-width:600px){
+  .table-card{overflow-x:auto;}
+  table{font-size:13px;}
+  th{font-size:9px;padding:9px 6px;letter-spacing:1px;}
+  td{font-size:12px;padding:8px 6px;}
+  td.station{font-size:15px;letter-spacing:0.5px;white-space:nowrap;}
+  .metar-flag{font-size:0.95em;margin-right:5px;}
+  td.time{font-size:12px;}
+  td.wind{font-size:12px;}
+  .raw-current,.raw-past{font-size:10.5px;line-height:1.5;}
+  #taf-table td{font-size:12px;padding:8px 6px;}
+  .btn-ghost{font-size:11px;padding:6px 9px;}
+  .clock-time{font-size:20px;}
+  .clock-date{font-size:11px;}
+  .section-title{font-size:15px;}
+  .speci-banner{font-size:11px;padding:8px 10px;}
+  .wb-title{font-size:12px;}
+  .status-bar{font-size:10px;}
+}
 </style>
 </head>
 <body>
@@ -3608,12 +3628,12 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click',()=>switchTab(btn.dataset.tab));
 });
 
-/* ── VENTUSKY precipitation (HARMONIE Caribbean), started 3h in the future ── */
+/* ── VENTUSKY precipitation (HARMONIE Caribbean) ──
+   NOTE: no t= start-time param — the embed renders blank when the requested
+   time is rejected, which is what broke this window. It opens at the current
+   time on the 3h-precipitation layer; scrub forward with its own time bar. */
 function ventuskySrc(){
-  var d=new Date(Date.now()+3*3600*1000); // +3h
-  function p(n){return (n<10?'0':'')+n;}
-  var t=''+d.getUTCFullYear()+p(d.getUTCMonth()+1)+p(d.getUTCDate())+'/'+p(d.getUTCHours())+'00'; // YYYYMMDD/HHMM UTC (Ventusky time format)
-  return 'https://embed.ventusky.com/?p=11.60;-68.93;5&l=rain-3h&m=harmonie_car&t='+t; // l=rain-3h = 3h precipitation
+  return 'https://embed.ventusky.com/?p=11.60;-68.93;5&l=rain-3h&m=harmonie_car&lang=en';
 }
 function setVentuskyFrame(){
   var f=document.getElementById('ventuskyFrame');
