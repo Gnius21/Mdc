@@ -1546,8 +1546,8 @@ async function toggleNotifications(){
       notificationsEnabled=true;
       try{localStorage.setItem('rwc-notify-enabled','1');}catch(e){}
       const on=STATIONS.filter(ic=>SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);
-      const st=on.length?on.join(', '):'no stations (enable in ⚙ Settings)';
-      showAppNotification('Regional Weather Centre',{body:`Notifications enabled — alarms active for: ${st}. Adjust per-station thresholds in ⚙ Settings.`,icon:'icon-192.png',badge:'icon-192.png'});
+      const gustPart=on.length?`Gust alarms: ${on.join(', ')}. `:'';
+      showAppNotification('Regional Weather Centre',{body:`Notifications enabled. ${gustPart}Significant weather (RA/SHRA/TS/TSRA) at ${WX_NOTIFY_ICAOS.join(', ')} always notifies. Adjust in ⚙ Settings.`,icon:'icon-192.png',badge:'icon-192.png'});
     }
   } else {
     notificationsEnabled=false;
@@ -1560,6 +1560,26 @@ function sendAlarmNotification(icao,parsed){
   showAppNotification(`⚠ Special Alarm — ${icao}`,{
     body:`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,
     tag:`special-alarm-${icao}`,
+    requireInteraction:true,
+    silent:false,
+    icon:'icon-192.png',
+    badge:'icon-192.png'
+  });
+}
+/* Default weather notification — always active for these stations whenever
+   notifications are enabled, independent of the per-station gust alarm
+   config. Fires on RA, SHRA, TS, TSRA (any +/- intensity). */
+const WX_NOTIFY_ICAOS=['TNCA','TNCB','TNCC'];
+function hasNotifyWx(wxText){
+  const txt=String(wxText||'').trim();
+  if(!txt||txt==='--')return false;
+  return txt.split(/\s+/).some(tok=>/^[+-]?(?:TSRA|SHRA|TS|RA)$/i.test(tok));
+}
+function sendWxNotification(icao,parsed){
+  if(!notificationsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
+  showAppNotification(`🌧 ${icao} — significant weather`,{
+    body:`${parsed.wx} reported at ${parsed.time}.\n${parsed.raw||''}`,
+    tag:`wx-alert-${icao}`,
     requireInteraction:true,
     silent:false,
     icon:'icon-192.png',
@@ -2403,6 +2423,8 @@ function renderMetar(icao,raw){
     const acfg=SETTINGS.stations[icao];
     const isSpecialAlarmCondition=!!(acfg&&acfg.alarm&&gustValue>=acfg.gust&&(!acfg.requireTS||tsPresent));
     if(isNew&&isSpecialAlarmCondition&&!window.__suppressAlarms){playSpecialAlarm();sendAlarmNotification(icao,parsed);}
+    // ── DEFAULT WEATHER NOTIFICATION ── TNCA/TNCB/TNCC, RA/SHRA/TS/TSRA (any intensity), always on when notifications are enabled.
+    if(isNew&&WX_NOTIFY_ICAOS.includes(icao)&&hasNotifyWx(parsed.wx)&&!window.__suppressAlarms){sendWxNotification(icao,parsed);}
     if(typeof windSpeed==='number'){state.stats.winds.push(windSpeed);if(state.stats.winds.length>200)state.stats.winds.shift();}
     if(parsed.td&&typeof parsed.td==='string'){const m=parsed.td.match(/^(M?)(\d{1,2})\/(M?)(\d{1,2})$/);if(m){const sign=m[1]==='M'?-1:1;const tempVal=sign*parseInt(m[2],10);state.stats.temps.push(tempVal);if(state.stats.temps.length>200)state.stats.temps.shift();}}
     if(!isNaN(parsed.visMin)){state.stats.vis.push(parsed.visMin);if(state.stats.vis.length>200)state.stats.vis.shift();}
@@ -3262,10 +3284,12 @@ function computeNotifyStatus(){
     const a=document.getElementById(`set-st-${ic}-alarm`);
     return a ? a.checked : !!(SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);
   });
-  if(!on.length){
-    return {cls:'status-warn', msg:'⚠ No stations have an alarm enabled above — nothing will trigger a notification yet. Tick "Alarm" for at least one station.'};
-  }
-  return {cls:'status-ok', msg:'✅ Will notify for: '+on.join(', ')+(Notification.permission==='granted'?'':' (permission will be requested on Save)')};
+  // The wx-based notification (RA/SHRA/TS/TSRA at TNCA/TNCB/TNCC) is always
+  // active once notifications are on, regardless of per-station gust alarms.
+  const parts=[];
+  if(on.length) parts.push('gust alarm — '+on.join(', '));
+  parts.push('significant weather (RA/SHRA/TS/TSRA) — '+WX_NOTIFY_ICAOS.join(', '));
+  return {cls:'status-ok', msg:'✅ Will notify for: '+parts.join(' · ')+(Notification.permission==='granted'?'':' (permission will be requested on Save)')};
 }
 function renderNotifyStatus(){
   const el=document.getElementById('set-notify-status');
