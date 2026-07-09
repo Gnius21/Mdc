@@ -978,6 +978,14 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 .set-st-name{font-family:var(--mono);font-size:13px;color:#d0e8ff;}
 .set-st-row .set-chk{justify-self:center;}
 .settings-body .set-st-row input[type=number]{width:58px;justify-self:center;padding:5px 6px;font-size:13px;}
+.set-notify-status{
+  margin-top:4px;padding:9px 11px;border-radius:8px;font-size:12px;line-height:1.5;
+  background:rgba(85,193,255,0.06);border:1px solid rgba(85,193,255,0.14);color:var(--muted);
+}
+.set-notify-status.status-ok{background:var(--ok-dim);border-color:rgba(63,207,130,0.35);color:var(--ok);}
+.set-notify-status.status-warn{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);color:var(--warn);}
+.set-notify-status.status-err{background:var(--alert-dim);border-color:rgba(255,95,95,0.35);color:var(--alert);}
+.set-notify-status.hidden{display:none;}
 .settings-foot{
   display:flex;align-items:center;gap:8px;
   padding:14px 18px;border-top:1px solid rgba(85,193,255,0.16);
@@ -1202,6 +1210,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
           <span class="set-ctl set-range"><input id="set-vol" type="range" min="0" max="100" step="5"><em id="set-vol-val">50%</em></span></label>
         <label class="set-row"><span class="set-lbl">Browser notifications</span>
           <input id="set-notify" type="checkbox" class="set-chk"></label>
+        <div id="set-notify-status" class="set-notify-status"></div>
       </div>
       <div class="settings-foot">
         <button id="set-test" class="btn-ghost" type="button">🔊 Test alarm</button>
@@ -3232,6 +3241,39 @@ function syncMuteButton(){
   const b=document.getElementById('mute-btn');
   if(b){b.setAttribute('aria-pressed',String(mute));b.textContent=mute?'🔇 Unmute':'🔊 Mute';}
 }
+/* Live "will this actually notify me?" status — reflects real permission
+   state + which stations currently have their alarm checkbox ticked, so a
+   denied/blocked permission or an empty station list never fails silently. */
+function computeNotifyStatus(){
+  const ntf=document.getElementById('set-notify');
+  const wantOn = !!(ntf && ntf.checked);
+  const supported = ('Notification' in window);
+  if(!supported){
+    if(isIOS && !isStandalone()) return {cls:'status-warn', msg:'📱 Install to Home Screen first (Share → Add to Home Screen), then reopen this app to enable alerts on iPhone/iPad.'};
+    return {cls:'status-warn', msg:'Notifications are not supported in this browser.'};
+  }
+  if(Notification.permission==='denied'){
+    return {cls:'status-err', msg:'🔕 Blocked by the browser/app. Enable notifications for this site in your device settings, then reopen this dialog.'};
+  }
+  if(!wantOn){
+    return {cls:'', msg:'Notifications are off — turn this on to get alerts for the stations below.'};
+  }
+  const on=STATIONS.filter(ic=>{
+    const a=document.getElementById(`set-st-${ic}-alarm`);
+    return a ? a.checked : !!(SETTINGS.stations[ic]&&SETTINGS.stations[ic].alarm);
+  });
+  if(!on.length){
+    return {cls:'status-warn', msg:'⚠ No stations have an alarm enabled above — nothing will trigger a notification yet. Tick "Alarm" for at least one station.'};
+  }
+  return {cls:'status-ok', msg:'✅ Will notify for: '+on.join(', ')+(Notification.permission==='granted'?'':' (permission will be requested on Save)')};
+}
+function renderNotifyStatus(){
+  const el=document.getElementById('set-notify-status');
+  if(!el) return;
+  const s=computeNotifyStatus();
+  el.className='set-notify-status'+(s.cls?' '+s.cls:'');
+  el.textContent=s.msg;
+}
 function populateSettingsForm(){
   const wrap=document.getElementById('set-stations');
   if(wrap&&!wrap.dataset.built){
@@ -3246,6 +3288,11 @@ function populateSettingsForm(){
     });
     wrap.innerHTML=h;
     wrap.dataset.built='1';
+    // Live-update the status line as station alarms are toggled.
+    STATIONS.forEach(ic=>{
+      const a=document.getElementById(`set-st-${ic}-alarm`);
+      if(a) a.addEventListener('change', renderNotifyStatus);
+    });
   }
   STATIONS.forEach(ic=>{
     const c=SETTINGS.stations[ic]||{};
@@ -3258,7 +3305,12 @@ function populateSettingsForm(){
   const snd=document.getElementById('set-sound'); if(snd) snd.checked=!mute;
   const vol=document.getElementById('set-vol'); const volv=document.getElementById('set-vol-val');
   if(vol){ const pct=Math.round(SETTINGS.alarmVolume*1000); vol.value=pct; if(volv) volv.textContent=pct+'%'; }
-  const ntf=document.getElementById('set-notify'); if(ntf){ ntf.checked=notificationsEnabled; ntf.disabled=!('Notification' in window)||Notification.permission==='denied'; }
+  const ntf=document.getElementById('set-notify');
+  if(ntf){
+    ntf.checked=notificationsEnabled; ntf.disabled=!('Notification' in window)||Notification.permission==='denied';
+    if(!ntf.dataset.wired){ ntf.addEventListener('change', renderNotifyStatus); ntf.dataset.wired='1'; }
+  }
+  renderNotifyStatus();
 }
 function openSettings(){
   populateSettingsForm();
@@ -3285,14 +3337,31 @@ async function saveSettingsFromForm(){
   if(snd){ mute=!snd.checked; syncMuteButton(); }
   // Browser notifications toggle (request permission if turning on)
   const ntf=document.getElementById('set-notify');
+  const wantedOn = !!(ntf && ntf.checked);
   if(ntf && ntf.checked!==notificationsEnabled){ await toggleNotifications(); }
+  renderNotifyStatus();
+  // If the user asked for notifications but permission was denied/blocked or is
+  // unsupported, don't silently close — keep the dialog open with the reason
+  // visible instead of implying success. A genuine on-with-no-stations state is
+  // only advisory, so that still closes.
+  const failedToEnable = wantedOn && !notificationsEnabled;
+  if(failedToEnable){
+    const el=document.getElementById('set-notify-status');
+    if(el) el.scrollIntoView({behavior:'smooth', block:'nearest'});
+    return;
+  }
   closeSettings();
 }
 document.getElementById('settings-btn')?.addEventListener('click',openSettings);
 document.getElementById('settings-close')?.addEventListener('click',closeSettings);
 document.getElementById('settingsModal')?.addEventListener('click',e=>{ if(e.target.id==='settingsModal') closeSettings(); });
 document.getElementById('set-save')?.addEventListener('click',saveSettingsFromForm);
-document.getElementById('set-test')?.addEventListener('click',()=>playSpecialAlarm(true));
+document.getElementById('set-test')?.addEventListener('click',()=>{
+  playSpecialAlarm(true);
+  if(notificationsEnabled&&'Notification' in window&&Notification.permission==='granted'){
+    showAppNotification('🔔 Test alarm',{body:'If you can see this, alarm notifications are working.',tag:'test-alarm',icon:'icon-192.png',badge:'icon-192.png'});
+  }
+});
 document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); saveSettings(); populateSettingsForm(); });
 document.getElementById('set-vol')?.addEventListener('input',e=>{ const v=document.getElementById('set-vol-val'); if(v) v.textContent=e.target.value+'%'; });
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeSettings(); });
