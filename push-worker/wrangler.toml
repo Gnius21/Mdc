@@ -1,0 +1,29 @@
+name = "rwc-weather-push"
+main = "src/worker.js"
+compatibility_date = "2024-11-01"
+
+# Cron Trigger — checks METAR and sends Web Push independently of whether
+# anyone has the dashboard open. Every 5 minutes.
+[triggers]
+crons = ["*/5 * * * *"]
+
+# KV namespace that stores push subscriptions + per-station alert config.
+# Create it with `wrangler kv namespace create PUSH_KV`, then paste the id below.
+kv_namespaces = [
+  { binding = "PUSH_KV", id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID" }
+]
+
+[vars]
+# Restrict who can call /subscribe /unsubscribe. Set to your GitHub Pages
+# origin (no trailing slash). Use "*" while testing if you like.
+ALLOWED_ORIGIN = "https://gnius21.github.io"
+
+# Required by the Web Push protocol (RFC 8292) — any contact URI/mailto is fine,
+# push services use it only if they need to reach you about your usage.
+VAPID_SUBJECT = "mailto:REPLACE_WITH_YOUR_EMAIL"
+
+# Public half of the VAPID key pair — safe to publish, the client needs this too.
+VAPID_PUBLIC_KEY = "BJiuoMX3n1bjxweFvS5q6OMhSKX9_HagtMgWM7tmQSV1xuWIP9jyzNEjgZVkRVDShO22sCfCcqAw3JqUuxoP_Bs"
+
+# VAPID_PRIVATE_KEY_JWK and SHARED_SECRET are SECRETS — do not put them here.
+# Set them with `wrangler secret put VAPID_PRIVATE_KEY_JWK` (see README.md).

@@ -1,5 +1,5 @@
 /* Regional Weather Centre — service worker (app-shell cache, live data passthrough) */
-const CACHE = 'rwc-shell-v3';
+const CACHE = 'rwc-shell-v4';
 const ASSETS = [
   './',
   './index.html',
@@ -51,4 +51,20 @@ self.addEventListener('notificationclick', e => {
       if (self.clients.openWindow) return self.clients.openWindow('./');
     })
   );
+});
+
+// Background push — fires even when the app is fully closed, as long as the
+// service worker is still registered (sent by push-worker/, not the page).
+self.addEventListener('push', e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch (err) { data = { title: 'Regional Weather Centre', body: e.data ? e.data.text() : '' }; }
+  const title = data.title || 'Regional Weather Centre';
+  const opts = {
+    body: data.body || '',
+    tag: data.tag || 'rwc-push',
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    requireInteraction: true
+  };
+  e.waitUntil(self.registration.showNotification(title, opts));
 });

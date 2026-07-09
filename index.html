@@ -960,6 +960,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
   padding:9px 0;cursor:pointer;
 }
 .set-lbl{font-size:13px;color:#d0e8ff;}
+.set-lbl small{display:block;font-size:10px;color:var(--muted);font-weight:400;margin-top:2px;}
 .set-ctl{flex-shrink:0;}
 .set-num,.set-range{display:inline-flex;align-items:center;gap:7px;}
 .set-num em,.set-range em{font-style:normal;font-family:var(--mono);font-size:12px;color:var(--muted);min-width:30px;}
@@ -1211,6 +1212,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <label class="set-row"><span class="set-lbl">Browser notifications</span>
           <input id="set-notify" type="checkbox" class="set-chk"></label>
         <div id="set-notify-status" class="set-notify-status"></div>
+        <label class="set-row"><span class="set-lbl">Background alerts <small>(works when app is closed)</small></span>
+          <input id="set-bg-push" type="checkbox" class="set-chk"></label>
+        <div id="set-bgpush-status" class="set-notify-status"></div>
       </div>
       <div class="settings-foot">
         <button id="set-test" class="btn-ghost" type="button">🔊 Test alarm</button>
@@ -1591,6 +1595,71 @@ try{
     notificationsEnabled=true;
   }
 }catch(e){}
+
+/* ── BACKGROUND PUSH (alerts even when the app is fully closed) ──
+   Requires deploying push-worker/ (see push-worker/README.md) and filling in
+   PUSH_WORKER_URL below. Left blank, background push simply reports as "not
+   configured" in Settings — everything else in the app works unaffected. */
+const PUSH_WORKER_URL=''; // e.g. 'https://rwc-weather-push.yoursubdomain.workers.dev'
+const PUSH_SHARED_SECRET=''; // must match SHARED_SECRET set on the worker, if you set one
+const VAPID_PUBLIC_KEY='BJiuoMX3n1bjxweFvS5q6OMhSKX9_HagtMgWM7tmQSV1xuWIP9jyzNEjgZVkRVDShO22sCfCcqAw3JqUuxoP_Bs';
+
+function urlBase64ToUint8Array(base64String){
+  const padding='='.repeat((4-base64String.length%4)%4);
+  const base64=(base64String+padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw=atob(base64);
+  const out=new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);
+  return out;
+}
+let bgPushEnabled=false;
+try{ bgPushEnabled=localStorage.getItem('rwc-bgpush-enabled')==='1'; }catch(e){}
+
+async function pushWorkerFetch(path,body){
+  const headers={'Content-Type':'application/json'};
+  if(PUSH_SHARED_SECRET) headers['X-Push-Secret']=PUSH_SHARED_SECRET;
+  const r=await fetchWithTimeout(PUSH_WORKER_URL+path,8000,{method:'POST',headers,body:JSON.stringify(body)});
+  if(!r||!r.ok) throw new Error('worker responded '+(r?r.status:'no response'));
+  try{ return await r.json(); }catch(e){ return {}; }
+}
+async function getExistingPushSubscription(){
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) return null;
+  try{
+    const reg=await navigator.serviceWorker.ready;
+    return await reg.pushManager.getSubscription();
+  }catch(e){ return null; }
+}
+async function enableBackgroundPush(){
+  if(!PUSH_WORKER_URL) throw new Error('PUSH_WORKER_URL is not configured — see push-worker/README.md');
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)) throw new Error('Background push is not supported in this browser');
+  let perm=Notification.permission;
+  if(perm==='default') perm=await Notification.requestPermission();
+  if(perm!=='granted') throw new Error('Notification permission was not granted');
+  const reg=await navigator.serviceWorker.ready;
+  let sub=await reg.pushManager.getSubscription();
+  if(!sub) sub=await reg.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:urlBase64ToUint8Array(VAPID_PUBLIC_KEY)});
+  await pushWorkerFetch('/subscribe',{subscription:sub.toJSON(), stations:SETTINGS.stations});
+  bgPushEnabled=true;
+  try{localStorage.setItem('rwc-bgpush-enabled','1');}catch(e){}
+}
+async function disableBackgroundPush(){
+  const sub=await getExistingPushSubscription();
+  if(sub){
+    try{ if(PUSH_WORKER_URL) await pushWorkerFetch('/unsubscribe',{endpoint:sub.endpoint}); }catch(e){}
+    try{ await sub.unsubscribe(); }catch(e){}
+  }
+  bgPushEnabled=false;
+  try{localStorage.setItem('rwc-bgpush-enabled','0');}catch(e){}
+}
+/* Keep the worker's copy of per-station thresholds in sync whenever Settings
+   are saved and background push is already on. */
+async function syncBackgroundPushSettings(){
+  if(!bgPushEnabled||!PUSH_WORKER_URL) return;
+  try{
+    const sub=await getExistingPushSubscription();
+    if(sub) await pushWorkerFetch('/subscribe',{subscription:sub.toJSON(), stations:SETTINGS.stations});
+  }catch(e){}
+}
 
 /* ── FETCH ── */
 async function fetchWithTimeout(url,timeout=REQUEST_TIMEOUT_MS,opts={}){
@@ -3298,6 +3367,35 @@ function renderNotifyStatus(){
   el.className='set-notify-status'+(s.cls?' '+s.cls:'');
   el.textContent=s.msg;
 }
+/* Background-push status — separate from the in-app notify status, since it's
+   an independent capability (requires push-worker/ deployed, see its README). */
+function computeBgPushStatus(){
+  const chk=document.getElementById('set-bg-push');
+  const wantOn=!!(chk&&chk.checked);
+  if(!('serviceWorker' in navigator)||!('PushManager' in window)){
+    return {cls:'status-warn', msg:'Background push is not supported in this browser.'};
+  }
+  if(!PUSH_WORKER_URL){
+    return {cls:'status-warn', msg:'⚙ Not set up yet — deploy push-worker/ and set PUSH_WORKER_URL in index.html (see push-worker/README.md).'};
+  }
+  if(!wantOn){
+    return {cls:'', msg:'Off — alerts only fire while the app is open. Turn this on for alerts even when it’s fully closed.'};
+  }
+  if(Notification.permission==='denied'){
+    return {cls:'status-err', msg:'🔕 Blocked — notification permission is required for background alerts too.'};
+  }
+  if(bgPushEnabled){
+    return {cls:'status-ok', msg:'✅ Background alerts active on this device (synced on every Save).'};
+  }
+  return {cls:'', msg:'Will subscribe this device on Save.'};
+}
+function renderBgPushStatus(){
+  const el=document.getElementById('set-bgpush-status');
+  if(!el) return;
+  const s=computeBgPushStatus();
+  el.className='set-notify-status'+(s.cls?' '+s.cls:'');
+  el.textContent=s.msg;
+}
 function populateSettingsForm(){
   const wrap=document.getElementById('set-stations');
   if(wrap&&!wrap.dataset.built){
@@ -3335,6 +3433,13 @@ function populateSettingsForm(){
     if(!ntf.dataset.wired){ ntf.addEventListener('change', renderNotifyStatus); ntf.dataset.wired='1'; }
   }
   renderNotifyStatus();
+  const bgp=document.getElementById('set-bg-push');
+  if(bgp){
+    bgp.checked=bgPushEnabled;
+    bgp.disabled=!('serviceWorker' in navigator)||!('PushManager' in window);
+    if(!bgp.dataset.wired){ bgp.addEventListener('change', renderBgPushStatus); bgp.dataset.wired='1'; }
+  }
+  renderBgPushStatus();
 }
 function openSettings(){
   populateSettingsForm();
@@ -3372,6 +3477,23 @@ async function saveSettingsFromForm(){
   if(failedToEnable){
     const el=document.getElementById('set-notify-status');
     if(el) el.scrollIntoView({behavior:'smooth', block:'nearest'});
+    return;
+  }
+  // Background push toggle (request a real push subscription if turning on)
+  const bgp=document.getElementById('set-bg-push');
+  const wantedBgOn=!!(bgp&&bgp.checked);
+  let bgError=null;
+  if(bgp && wantedBgOn!==bgPushEnabled){
+    try{
+      if(wantedBgOn) await enableBackgroundPush(); else await disableBackgroundPush();
+    }catch(e){ bgError=e; }
+  } else if(wantedBgOn && bgPushEnabled){
+    try{ await syncBackgroundPushSettings(); }catch(e){ bgError=e; } // keep worker's thresholds current
+  }
+  renderBgPushStatus();
+  if(wantedBgOn && !bgPushEnabled){
+    const el=document.getElementById('set-bgpush-status');
+    if(el){ el.textContent='⚠ Could not enable background alerts'+(bgError?(': '+bgError.message):'')+'.'; el.className='set-notify-status status-err'; el.scrollIntoView({behavior:'smooth', block:'nearest'}); }
     return;
   }
   closeSettings();
