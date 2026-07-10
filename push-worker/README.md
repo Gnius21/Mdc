@@ -15,9 +15,41 @@ background alerts).
 ## What you need
 
 - A free Cloudflare account (Workers Free plan covers this comfortably).
-- Node.js + `npx wrangler` (no global install needed).
+- EITHER nothing else (dashboard-only deploy, see next section) OR
+  Node.js + `npx wrangler` for the CLI route further below.
 
-## One-time setup
+## Deploy without any tools (browser dashboard only)
+
+Everything happens at https://dash.cloudflare.com — works from a phone.
+
+1. **Create the KV store**: Storage & Databases → **KV** → *Create namespace*
+   → name it `PUSH_KV`.
+2. **Create the Worker**: Workers & Pages → *Create* → **Create Worker** →
+   name it `rwc-weather-push` → *Deploy* (it deploys a hello-world first).
+3. **Paste the code**: on the new Worker click **Edit code**, delete the
+   hello-world, paste the full contents of `push-worker/src/worker.js`
+   (open it on GitHub → Raw → select all → copy) → **Deploy**.
+4. **Bind the KV store**: Worker → Settings → **Bindings** → *Add* →
+   KV namespace → Variable name `PUSH_KV` → pick the namespace from step 1.
+5. **Variables & secrets** (Worker → Settings → Variables & Secrets):
+   | Name | Type | Value |
+   |---|---|---|
+   | `ALLOWED_ORIGIN` | Text | `https://gnius21.github.io` |
+   | `VAPID_SUBJECT` | Text | `mailto:your@email` |
+   | `VAPID_PUBLIC_KEY` | Text | the public key from `wrangler.toml` |
+   | `VAPID_PRIVATE_KEY_JWK` | **Secret** | the private JWK JSON (provided out-of-band — never commit it) |
+   | `SHARED_SECRET` | Secret | optional, any random string |
+6. **Cron**: Worker → Settings → **Triggers** → Cron Triggers → *Add* →
+   `*/5 * * * *`.
+7. Copy the Worker URL from its overview page
+   (`https://rwc-weather-push.<your-subdomain>.workers.dev`) and set it as
+   `PUSH_WORKER_URL` in `index.html`.
+
+Steps 4–6 require a re-deploy? No — dashboard changes apply immediately.
+Note: when deploying via the dashboard, `wrangler.toml` is ignored; all
+settings must be entered in the UI as above.
+
+## One-time setup (CLI route)
 
 ```bash
 cd push-worker
