@@ -1120,7 +1120,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
       <div class="windy-box windy-rain">
         <span class="windy-lbl">🌧 Rain/Thunder · ABC</span>
         <iframe title="Windy AROME rain — ABC islands" loading="lazy" referrerpolicy="no-referrer-when-downgrade"
-          data-src="https://embed.windy.com/embed2.html?lat=12.55&lon=-69.40&detailLat=12.55&detailLon=-69.40&zoom=6&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1&particlesAnim=off"></iframe>
+          data-src="https://embed.windy.com/embed2.html?lat=12.19&lon=-68.96&detailLat=12.19&detailLon=-68.96&zoom=6&level=surface&overlay=rain&product=aromeAntilles&menu=&message=&marker=&calendar=&pressure=true&type=map&location=coordinates&detail=&metricWind=kt&metricTemp=%C2%B0C&radarRange=-1&particlesAnim=off"></iframe>
       </div>
       <div class="windy-box ventusky-box">
         <span class="windy-lbl">🌧 Precip +3h · Ventusky</span>
@@ -1178,8 +1178,8 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <button id="install-btn" class="btn-ghost hidden" title="Install as a home-screen app">⬇ Install App</button>
         <button id="test-btn" class="btn-ghost">⚗ Test Mode</button>
         <button id="night-btn" class="btn-ghost" aria-pressed="false" title="Toggle Night Mode">🌙 Night</button>
+        <button id="refresh-btn" class="btn-primary" title="Refresh METARs & Vis" style="height:auto;padding:6px 12px;font-size:12px;">↻ Refresh All</button>
       </div>
-      <button id="refresh-btn" class="btn-primary" title="Refresh METARs & Vis">↻ Refresh All</button>
     </div>
   </div>
 
@@ -3848,7 +3848,7 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
    time is rejected, which is what broke this window. It opens at the current
    time on the 3h-precipitation layer; scrub forward with its own time bar. */
 function ventuskySrc(){
-  return 'https://embed.ventusky.com/?p=11.60;-68.93;5&l=rain-3h&m=harmonie_car&lang=en';
+  return 'https://embed.ventusky.com/?p=12.19;-68.96;5&l=rain-3h&m=harmonie_car&lang=en';
 }
 function setVentuskyFrame(){
   var f=document.getElementById('ventuskyFrame');
