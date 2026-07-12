@@ -25,5 +25,10 @@ VAPID_SUBJECT = "mailto:REPLACE_WITH_YOUR_EMAIL"
 # Public half of the VAPID key pair — safe to publish, the client needs this too.
 VAPID_PUBLIC_KEY = "BJiuoMX3n1bjxweFvS5q6OMhSKX9_HagtMgWM7tmQSV1xuWIP9jyzNEjgZVkRVDShO22sCfCcqAw3JqUuxoP_Bs"
 
+# ntfy topic — the SIMPLE push channel. If set, the cron also publishes alerts
+# here; subscribe to this topic in the ntfy app (server ntfy.sh) on your phone.
+# With ntfy you can skip the VAPID/Web-Push setup entirely.
+NTFY_TOPIC = "rwc-abc-wx-4f49205af5"
+
 # VAPID_PRIVATE_KEY_JWK and SHARED_SECRET are SECRETS — do not put them here.
 # Set them with `wrangler secret put VAPID_PRIVATE_KEY_JWK` (see README.md).

@@ -12,6 +12,28 @@ in the app, and reads the same per-station Settings you configure in the
 dashboard's ⚙ Settings panel (synced to this worker when you enable
 background alerts).
 
+## Easiest path: ntfy (recommended)
+
+Skip all the Web-Push/VAPID machinery. Install the **ntfy** app
+(App Store / Play Store), tap **+ Subscribe to topic**, and enter:
+
+- Topic: `rwc-abc-wx-4f49205af5`
+- Server: `ntfy.sh` (default)
+
+That's it for the phone. Alerts arrive two ways:
+
+1. **From any open dashboard** — already live; whenever an alarm triggers in
+   an open instance of the dashboard (your PC at work, a tablet, anywhere),
+   it publishes to the topic and your phone gets a native push.
+2. **Fully closed everywhere** — deploy this Worker with just three steps
+   (no secrets needed for ntfy-only): paste the code, bind KV, set the
+   `NTFY_TOPIC` var (already in wrangler.toml) and the cron trigger. Skip
+   every VAPID/secret step below.
+
+Note: ntfy.sh topics are open — anyone who knows the exact topic string can
+subscribe or post to it. The random suffix keeps it obscure; if that ever
+bothers you, rotate the topic or self-host ntfy with auth.
+
 ## What you need
 
 - A free Cloudflare account (Workers Free plan covers this comfortably).

@@ -248,7 +248,18 @@ body::after{
 @media(min-width:2000px){.page{padding:18px 48px;}}
 
 /* ── TOP ROW ── */
-.top-row{width:100%;max-width:100%;display:grid;grid-template-columns:var(--widget-width) 1fr auto;align-items:center;gap:14px;}
+.top-row{width:100%;max-width:100%;display:grid;grid-template-columns:var(--widget-width) 1fr;align-items:center;gap:14px;}
+
+/* ── CLOCK BAR (local left · UTC right) ── */
+.clock-bar{
+  width:100%;max-width:100%;
+  display:flex;justify-content:space-between;align-items:baseline;
+  padding:2px 6px;
+}
+.cb-group{display:flex;align-items:baseline;gap:9px;}
+.cb-group .clock-time{font-size:24px;}
+.cb-group .clock-date{font-size:11px;}
+@media(max-width:600px){.cb-group .clock-time{font-size:19px;}.cb-group{gap:6px;}.cb-group .clock-date{display:none;}}
 
 /* ── WINDY MAPS (satellite + radar, Curaçao) ──
    The iframe is over-sized inside an overflow:hidden box and shifted up so the
@@ -1103,6 +1114,20 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 <body>
 <div class="page" id="pageRoot">
 
+  <!-- ═══ CLOCK BAR (local left · UTC right) ═══ -->
+  <div class="clock-bar" role="banner" aria-label="Time">
+    <div class="cb-group">
+      <span class="clock-label">Local</span>
+      <span id="local-clock" class="clock-time">--:--:--</span>
+      <span id="local-date" class="clock-date">--</span>
+    </div>
+    <div class="cb-group">
+      <span class="clock-label">UTC</span>
+      <span id="utc-clock" class="clock-time">--:--:--</span>
+      <span id="utc-date" class="clock-date">--</span>
+    </div>
+  </div>
+
   <!-- ═══ TOP ROW ═══ -->
   <div class="top-row" role="banner">
     <!-- Windy satellite + radar (Curaçao) -->
@@ -1148,23 +1173,6 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
             </div>
           </div>
           <button id="vis-refresh-btn" class="btn-primary" aria-label="Refresh Bonaire visibility" style="font-size:11px;padding:6px 10px;height:30px;">↻ Refresh</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Header -->
-    <div class="header-block" role="region" aria-label="Regional header">
-      <div class="header-clocks" aria-hidden="false">
-        <div class="clock-group">
-          <div class="clock-label">Local</div>
-          <div id="local-clock" class="clock-time">--:--:--</div>
-          <div id="local-date" class="clock-date">--</div>
-        </div>
-        <div class="clock-sep"></div>
-        <div class="clock-group">
-          <div class="clock-label">UTC</div>
-          <div id="utc-clock" class="clock-time">--:--:--</div>
-          <div id="utc-date" class="clock-date">--</div>
         </div>
       </div>
     </div>
@@ -1215,6 +1223,9 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <label class="set-row"><span class="set-lbl">Background alerts <small>(works when app is closed)</small></span>
           <input id="set-bg-push" type="checkbox" class="set-chk"></label>
         <div id="set-bgpush-status" class="set-notify-status"></div>
+        <label class="set-row"><span class="set-lbl">Push via ntfy app <small>(simple phone push — see status below)</small></span>
+          <input id="set-ntfy" type="checkbox" class="set-chk"></label>
+        <div id="set-ntfy-status" class="set-notify-status"></div>
       </div>
       <div class="settings-foot">
         <button id="set-test" class="btn-ghost" type="button">🔊 Test alarm</button>
@@ -1559,7 +1570,25 @@ async function toggleNotifications(){
   }
   updateNotifyButton();
 }
+/* ── NTFY PUSH ── simple real push via the ntfy app (https://ntfy.sh).
+   Publishes fire-and-forget whenever an alarm triggers in any open instance
+   of this dashboard; the ntfy app receives them as native notifications even
+   with this app fully closed. Subscribe to NTFY_TOPIC in the ntfy app. */
+const NTFY_TOPIC='rwc-abc-wx-4f49205af5';
+let ntfyEnabled=true;
+try{ ntfyEnabled=localStorage.getItem('rwc-ntfy-enabled')!=='0'; }catch(e){}
+function ntfyPublish(title,message,tags,priority){
+  if(!NTFY_TOPIC||!ntfyEnabled) return;
+  try{
+    fetch('https://ntfy.sh',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({topic:NTFY_TOPIC,title:title,message:message,priority:priority||4,tags:tags||['warning']})
+    }).catch(function(){});
+  }catch(e){}
+}
 function sendAlarmNotification(icao,parsed){
+  ntfyPublish(`Special Alarm — ${icao}`,`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,['rotating_light'],5);
   if(!notificationsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
   showAppNotification(`⚠ Special Alarm — ${icao}`,{
     body:`Gust ${parsed.gust||extractWindSpeedFromWindBase(parsed.windBase)}kt with ${parsed.wx} — immediate attention required.\n${parsed.raw||''}`,
@@ -1580,6 +1609,7 @@ function hasNotifyWx(wxText){
   return txt.split(/\s+/).some(tok=>/^[+-]?(?:TSRA|SHRA|TS|RA)$/i.test(tok));
 }
 function sendWxNotification(icao,parsed){
+  ntfyPublish(`${icao} — significant weather`,`${parsed.wx} reported at ${parsed.time}.\n${parsed.raw||''}`,['zap'],4);
   if(!notificationsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
   showAppNotification(`🌧 ${icao} — significant weather`,{
     body:`${parsed.wx} reported at ${parsed.time}.\n${parsed.raw||''}`,
@@ -3440,6 +3470,18 @@ function populateSettingsForm(){
     if(!bgp.dataset.wired){ bgp.addEventListener('change', renderBgPushStatus); bgp.dataset.wired='1'; }
   }
   renderBgPushStatus();
+  const nfy=document.getElementById('set-ntfy');
+  if(nfy) nfy.checked=ntfyEnabled;
+  const nfyStatus=document.getElementById('set-ntfy-status');
+  if(nfyStatus){
+    if(NTFY_TOPIC){
+      nfyStatus.className='set-notify-status status-ok';
+      nfyStatus.textContent='📲 In the ntfy app: Subscribe to topic → "'+NTFY_TOPIC+'" (server ntfy.sh). Alerts publish there whenever this dashboard is open anywhere, plus from the background worker if deployed.';
+    } else {
+      nfyStatus.className='set-notify-status status-warn';
+      nfyStatus.textContent='Not configured — set NTFY_TOPIC in index.html.';
+    }
+  }
 }
 function openSettings(){
   populateSettingsForm();
@@ -3460,6 +3502,7 @@ async function saveSettingsFromForm(){
   const vis=document.getElementById('set-vis'); if(vis){ const v=parseInt(vis.value,10); if(!isNaN(v)) SETTINGS.visAlertM=Math.min(9999,Math.max(0,v)); }
   const beep=document.getElementById('set-beep'); if(beep) SETTINGS.beepOnUpdate=beep.checked;
   const vol=document.getElementById('set-vol'); if(vol){ SETTINGS.alarmVolume=Math.min(0.1,Math.max(0,parseInt(vol.value,10)/1000)); }
+  const nfy=document.getElementById('set-ntfy'); if(nfy){ ntfyEnabled=nfy.checked; try{localStorage.setItem('rwc-ntfy-enabled',ntfyEnabled?'1':'0');}catch(e){} }
   saveSettings();
   // Sound (mute) toggle
   const snd=document.getElementById('set-sound');
@@ -3507,6 +3550,7 @@ document.getElementById('set-test')?.addEventListener('click',()=>{
   if(notificationsEnabled&&'Notification' in window&&Notification.permission==='granted'){
     showAppNotification('🔔 Test alarm',{body:'If you can see this, alarm notifications are working.',tag:'test-alarm',icon:'icon-192.png',badge:'icon-192.png'});
   }
+  ntfyPublish('Test alarm','If this reached the ntfy app on your phone, ntfy push is working.',['white_check_mark'],3);
 });
 document.getElementById('set-reset')?.addEventListener('click',()=>{ SETTINGS=JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); saveSettings(); populateSettingsForm(); });
 document.getElementById('set-vol')?.addEventListener('input',e=>{ const v=document.getElementById('set-vol-val'); if(v) v.textContent=e.target.value+'%'; });

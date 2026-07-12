@@ -148,6 +148,21 @@ async function sendPush(env, subRecord, payloadObj) {
   }
 }
 
+/* ── ntfy publishing (https://ntfy.sh) — the simple push channel ──
+   If NTFY_TOPIC is set, the cron also publishes alerts to that topic; the
+   ntfy app on the phone shows them natively. Needs no VAPID keys, secrets or
+   device subscriptions — the easiest way to get background alerts. */
+async function publishNtfy(env, title, message, priority, tags) {
+  if (!env.NTFY_TOPIC) return;
+  try {
+    await fetch(env.NTFY_SERVER || 'https://ntfy.sh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: env.NTFY_TOPIC, title, message, priority: priority || 4, tags: tags || ['warning'] })
+    });
+  } catch (e) {}
+}
+
 /* ── KV helpers ── */
 async function loadSubs(env) {
   const raw = await env.PUSH_KV.get(SUBS_KEY);
@@ -225,10 +240,35 @@ async function handleRequest(request, env) {
 /* ── Cron handler: poll METAR, notify subscriptions whose conditions are newly met ── */
 async function handleScheduled(env) {
   const subs = await loadSubs(env);
-  if (!subs.length) return;
+  const ntfyOn = !!env.NTFY_TOPIC;
+  if (!subs.length && !ntfyOn) return;
 
   const metars = {};
   for (const icao of STATIONS) metars[icao] = await fetchMetar(icao);
+
+  // ── ntfy channel: default wx alerts (TNCA/TNCB/TNCC RA/SHRA/TS/TSRA) plus
+  //    the classic TNCA gust≥35+TS special alarm. Dedup state kept in KV. ──
+  if (ntfyOn) {
+    let last = {};
+    try { last = JSON.parse(await env.PUSH_KV.get('ntfy_last_v1')) || {}; } catch (e) { last = {}; }
+    let nChanged = false;
+    for (const icao of WX_NOTIFY_ICAOS) {
+      const m = metars[icao];
+      if (!m || !m.time) continue;
+      if (hasNotifyWx(m.wx) && last[icao + '_wx'] !== m.time) {
+        await publishNtfy(env, `${icao} — significant weather`, `${m.wx} reported at ${m.time}.\n${m.raw}`, 4, ['zap']);
+        last[icao + '_wx'] = m.time; nChanged = true;
+      }
+    }
+    const a = metars['TNCA'];
+    if (a && a.time && a.gust >= 35 && tsPresent(a.wx) && last['TNCA_gust'] !== a.time) {
+      await publishNtfy(env, 'Special Alarm — TNCA', `Gust ${a.gust}kt with ${a.wx} — immediate attention required.\n${a.raw}`, 5, ['rotating_light']);
+      last['TNCA_gust'] = a.time; nChanged = true;
+    }
+    if (nChanged) await env.PUSH_KV.put('ntfy_last_v1', JSON.stringify(last));
+  }
+
+  if (!subs.length) return;
 
   let changed = false;
   const stillAlive = [];
