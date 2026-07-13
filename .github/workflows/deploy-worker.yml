@@ -1,0 +1,74 @@
+# Deploys push-worker/ to Cloudflare Workers automatically.
+#
+# One-time setup (all in the browser):
+#   1. Cloudflare dashboard -> My Profile -> API Tokens -> Create Token ->
+#      use the "Edit Cloudflare Workers" template, and add the permission
+#      "Account / Workers KV Storage / Edit". Copy the token.
+#   2. Cloudflare dashboard -> Workers & Pages -> copy your Account ID
+#      (right sidebar).
+#   3. GitHub repo -> Settings -> Secrets and variables -> Actions ->
+#      add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+#   4. GitHub repo -> Actions tab -> "Deploy push worker" -> Run workflow.
+#
+# After that it also redeploys automatically whenever push-worker/ changes.
+name: Deploy push worker
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['push-worker/**']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: push-worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Check secrets are configured
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as repository secrets first (see comments at the top of this workflow)."
+            exit 1
+          fi
+
+      - name: Ensure KV namespace exists and inject its id
+        run: |
+          npx wrangler kv namespace create PUSH_KV 2>/dev/null || true
+          npx wrangler kv namespace list > /tmp/kv.json || true
+          ID=$(node -e "
+            const raw = require('fs').readFileSync('/tmp/kv.json','utf8');
+            const start = raw.indexOf('[');
+            if (start < 0) { console.log(''); process.exit(0); }
+            try {
+              const list = JSON.parse(raw.slice(start));
+              const hit = list.find(n => n.title && n.title.includes('PUSH_KV'));
+              console.log(hit ? hit.id : '');
+            } catch (e) { console.log(''); }
+          ")
+          if [ -z "$ID" ]; then
+            echo "::error::Could not find or create the PUSH_KV namespace — check the API token has Workers KV Storage: Edit permission."
+            exit 1
+          fi
+          echo "Using KV namespace id: $ID"
+          sed -i "s/REPLACE_WITH_YOUR_KV_NAMESPACE_ID/$ID/" wrangler.toml
+
+      - name: Deploy worker
+        run: npx wrangler deploy
+
+      - name: Done
+        run: |
+          echo "Deployed. ntfy background alerts are active (NTFY_TOPIC is set in wrangler.toml)."
+          echo "The worker cron now polls METAR every 5 minutes and publishes alerts to ntfy even when the app is closed."
