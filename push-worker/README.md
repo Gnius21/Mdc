@@ -34,6 +34,27 @@ Note: ntfy.sh topics are open — anyone who knows the exact topic string can
 subscribe or post to it. The random suffix keeps it obscure; if that ever
 bothers you, rotate the topic or self-host ntfy with auth.
 
+## Deploy with GitHub Actions (recommended — browser only)
+
+The repo ships a workflow (`.github/workflows/deploy-worker.yml`) that
+deploys this Worker for you. One-time setup, all in the browser:
+
+1. Cloudflare dashboard → My Profile → **API Tokens** → *Create Token* →
+   use the **"Edit Cloudflare Workers"** template and add the permission
+   **Account / Workers KV Storage / Edit**. Copy the token.
+2. Cloudflare dashboard → Workers & Pages → copy your **Account ID**
+   (right sidebar).
+3. GitHub repo → Settings → **Secrets and variables → Actions** → add:
+   - `CLOUDFLARE_API_TOKEN`
+   - `CLOUDFLARE_ACCOUNT_ID`
+4. GitHub repo → **Actions** tab → *Deploy push worker* → **Run workflow**.
+
+The workflow creates the KV namespace itself, injects its id, and deploys
+with the cron trigger. Because `NTFY_TOPIC` is preconfigured, **background
+ntfy alerts are live immediately after the first successful run** — no
+VAPID keys, no secrets, no `PUSH_WORKER_URL` needed. It also redeploys
+automatically whenever `push-worker/` changes on `main`.
+
 ## What you need
 
 - A free Cloudflare account (Workers Free plan covers this comfortably).

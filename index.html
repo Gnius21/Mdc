@@ -243,8 +243,19 @@ body::after{
   background:repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
 }
 
-.page{width:100%;position:relative;z-index:1;padding:14px 18px;display:flex;flex-direction:column;align-items:center;gap:14px;min-height:100vh;}
+.page{width:100%;position:relative;z-index:1;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;align-items:center;gap:14px;min-height:100vh;}
 @media(min-width:1400px){.page{padding:16px 34px;}}
+
+/* ── TOP LOADER (glowing bar along the very top edge, notch area) ── */
+.top-loader{
+  position:fixed;top:0;left:0;right:0;height:4px;z-index:10000;pointer-events:none;
+  background:linear-gradient(90deg,transparent 0%,var(--accent) 35%,var(--accent-strong) 50%,var(--accent) 65%,transparent 100%);
+  background-size:45% 100%;background-repeat:no-repeat;background-position:-45% 0;
+  opacity:0;transition:opacity .35s ease;
+  box-shadow:0 0 14px var(--accent),0 0 4px var(--accent-strong);
+}
+.top-loader.active{opacity:1;animation:loaderSweep 1.1s linear infinite;}
+@keyframes loaderSweep{0%{background-position:-45% 0;}100%{background-position:145% 0;}}
 @media(min-width:2000px){.page{padding:18px 48px;}}
 
 /* ── TOP ROW ── */
@@ -1112,6 +1123,7 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
 </style>
 </head>
 <body>
+<div id="topLoader" class="top-loader" aria-hidden="true"></div>
 <div class="page" id="pageRoot">
 
   <!-- ═══ CLOCK BAR (local left · UTC right) ═══ -->
@@ -1691,11 +1703,28 @@ async function syncBackgroundPushSettings(){
   }catch(e){}
 }
 
+/* ── TOP LOADER (glowing bar at the very top while any data is in flight) ── */
+let __loaderCount=0;
+function loaderStart(){
+  __loaderCount++;
+  const el=document.getElementById('topLoader');
+  if(el) el.classList.add('active');
+}
+function loaderEnd(){
+  __loaderCount=Math.max(0,__loaderCount-1);
+  if(__loaderCount===0){
+    const el=document.getElementById('topLoader');
+    if(el) el.classList.remove('active');
+  }
+}
+
 /* ── FETCH ── */
 async function fetchWithTimeout(url,timeout=REQUEST_TIMEOUT_MS,opts={}){
+  loaderStart();
   const ctrl=new AbortController(),id=setTimeout(()=>ctrl.abort(),timeout);
   try{ const r=await fetch(url,Object.assign({cache:'no-store',mode:'cors',signal:ctrl.signal},opts)); clearTimeout(id); return r; }
   catch(e){ clearTimeout(id); throw e; }
+  finally{ loaderEnd(); }
 }
 /* Race the direct URL and several CORS proxies in parallel; the first source
    that returns a non-empty body wins. Far quicker than trying them one after
@@ -3406,7 +3435,7 @@ function computeBgPushStatus(){
     return {cls:'status-warn', msg:'Background push is not supported in this browser.'};
   }
   if(!PUSH_WORKER_URL){
-    return {cls:'status-warn', msg:'⚙ Not set up yet — deploy push-worker/ and set PUSH_WORKER_URL in index.html (see push-worker/README.md).'};
+    return {cls:'', msg:'Optional Web-Push channel, not set up (needs the worker deployed + PUSH_WORKER_URL). Tip: the ntfy option below is simpler and already works — use that instead.'};
   }
   if(!wantOn){
     return {cls:'', msg:'Off — alerts only fire while the app is open. Turn this on for alerts even when it’s fully closed.'};
