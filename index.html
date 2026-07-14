@@ -1232,12 +1232,12 @@ tr.taf-change-row td.wx-critical{color:var(--alert)!important;background:var(--a
         <label class="set-row"><span class="set-lbl">Browser notifications</span>
           <input id="set-notify" type="checkbox" class="set-chk"></label>
         <div id="set-notify-status" class="set-notify-status"></div>
-        <label class="set-row"><span class="set-lbl">Background alerts <small>(works when app is closed)</small></span>
-          <input id="set-bg-push" type="checkbox" class="set-chk"></label>
-        <div id="set-bgpush-status" class="set-notify-status"></div>
-        <label class="set-row"><span class="set-lbl">Push via ntfy app <small>(simple phone push — see status below)</small></span>
+        <label class="set-row"><span class="set-lbl">Push via ntfy app <small>(recommended — works even fully closed once deployed)</small></span>
           <input id="set-ntfy" type="checkbox" class="set-chk"></label>
         <div id="set-ntfy-status" class="set-notify-status"></div>
+        <label class="set-row"><span class="set-lbl">Web Push channel <small>(advanced/optional — needs its own deploy, most people don't need this)</small></span>
+          <input id="set-bg-push" type="checkbox" class="set-chk"></label>
+        <div id="set-bgpush-status" class="set-notify-status"></div>
       </div>
       <div class="settings-foot">
         <button id="set-test" class="btn-ghost" type="button">🔊 Test alarm</button>
@@ -3505,7 +3505,9 @@ function populateSettingsForm(){
   if(nfyStatus){
     if(NTFY_TOPIC){
       nfyStatus.className='set-notify-status status-ok';
-      nfyStatus.textContent='📲 In the ntfy app: Subscribe to topic → "'+NTFY_TOPIC+'" (server ntfy.sh). Alerts publish there whenever this dashboard is open anywhere, plus from the background worker if deployed.';
+      nfyStatus.innerHTML='📲 In the ntfy app: Subscribe to topic → "'+NTFY_TOPIC+'" (server ntfy.sh).<br>'+
+        '✅ <b>Works now:</b> alerts publish whenever any dashboard tab/app is open, anywhere.<br>'+
+        '⏳ <b>Fully closed too:</b> requires push-worker/ deployed on Cloudflare (its cron polls independently) — NTFY_TOPIC is already set there, no VAPID keys needed. See push-worker/README.md → "Easiest path: ntfy".';
     } else {
       nfyStatus.className='set-notify-status status-warn';
       nfyStatus.textContent='Not configured — set NTFY_TOPIC in index.html.';
